@@ -158,12 +158,6 @@ Open `http://localhost:19802` (auto-opens on start):
 python build.py    # Builds React frontend + packages into single exe
 ```
 
-Push a tag for CI release:
-
-```bash
-git tag v2.0.0 && git push origin v2.0.0
-```
-
 ## License
 
 MIT
