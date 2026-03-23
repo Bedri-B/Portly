@@ -2,10 +2,21 @@ name: Build & Release
 
 on:
   push:
-    branches: [main]
     tags: ["v*"]
+    branches: [main]
+    paths:
+      - "app.py"
+      - "build.py"
+      - "requirements.txt"
+      - "web/**"
+      - ".github/workflows/**"
   pull_request:
     branches: [main]
+    paths:
+      - "app.py"
+      - "build.py"
+      - "requirements.txt"
+      - "web/**"
   workflow_dispatch:
 
 jobs:
