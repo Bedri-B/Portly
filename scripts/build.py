@@ -1,15 +1,15 @@
 """Build script: builds React frontend, then packages everything into a single exe."""
 
+import os
 import subprocess
 import sys
 import platform
-import shutil
 from pathlib import Path
 
-APP_DIR = Path(__file__).parent
-WEB_DIR = APP_DIR / "web"
+ROOT_DIR = Path(__file__).parent.parent
+WEB_DIR = ROOT_DIR / "web"
 WEB_DIST = WEB_DIR / "dist"
-DIST_DIR = APP_DIR / "dist"
+DIST_DIR = ROOT_DIR / "dist"
 SYSTEM = platform.system()
 
 
@@ -27,13 +27,13 @@ def build_exe():
         sys.executable, "-m", "PyInstaller",
         "--noconfirm",
         "--onefile",
-        "--console",  # headless server needs console for stdout
+        "--console",
         "--name", name,
         "--add-data", f"{WEB_DIST}{os.pathsep}web",
         "--distpath", str(DIST_DIR),
-        "--workpath", str(APP_DIR / "build"),
-        "--specpath", str(APP_DIR),
-        str(APP_DIR / "app.py"),
+        "--workpath", str(ROOT_DIR / "build"),
+        "--specpath", str(ROOT_DIR),
+        str(ROOT_DIR / "portly" / "__main__.py"),
     ]
 
     print(f"Building exe for {SYSTEM}...")
@@ -45,6 +45,5 @@ def build_exe():
 
 
 if __name__ == "__main__":
-    import os
     build_web()
     build_exe()

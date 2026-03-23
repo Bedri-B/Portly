@@ -19,13 +19,13 @@ curl https://api.localhost     # -> localhost:8080
 **macOS / Linux:**
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/Bedri-B/Portly/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/Bedri-B/Portly/main/scripts/install.sh | bash
 ```
 
 **Windows (PowerShell):**
 
 ```powershell
-irm https://raw.githubusercontent.com/Bedri-B/Portly/main/install.ps1 | iex
+irm https://raw.githubusercontent.com/Bedri-B/Portly/main/scripts/install.ps1 | iex
 ```
 
 Downloads the latest release, puts it on your PATH, ready to go.
@@ -35,13 +35,13 @@ Downloads the latest release, puts it on your PATH, ready to go.
 **macOS / Linux:**
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/Bedri-B/Portly/main/uninstall.sh | bash
+curl -fsSL https://raw.githubusercontent.com/Bedri-B/Portly/main/scripts/uninstall.sh | bash
 ```
 
 **Windows (PowerShell):**
 
 ```powershell
-irm https://raw.githubusercontent.com/Bedri-B/Portly/main/uninstall.ps1 | iex
+irm https://raw.githubusercontent.com/Bedri-B/Portly/main/scripts/uninstall.ps1 | iex
 ```
 
 <details>
@@ -53,10 +53,10 @@ Download a binary from [**Releases**](../../releases) and add it to your PATH, o
 git clone https://github.com/Bedri-B/Portly.git && cd Portly
 pip install pyinstaller
 cd web && npm install && npm run build && cd ..
-python build.py      # outputs dist/portly
+python scripts/build.py   # outputs dist/portly
 ```
 
-Or run directly without building: `python app.py`
+Or run directly without building: `python -m portly`
 
 </details>
 
