@@ -1,5 +1,5 @@
 """
-docker-global: Portless reverse proxy + port management for local and Docker services.
+portly: Portless reverse proxy + port management for local and Docker services.
 
 Maps human-readable URLs like https://myapp.localhost to localhost:port.
 Auto-discovers Docker container ports. Supports static aliases for any local service.
@@ -552,7 +552,7 @@ def _serve(port, handler, name, ssl_ctx=None):
 
 
 # ── Service Install ──────────────────────────────────────────────────────────
-SERVICE_NAME = "docker-global"
+SERVICE_NAME = "portly"
 
 
 def _exe_path():
@@ -568,7 +568,7 @@ def service_install():
         if nssm:
             print(f"Installing '{SERVICE_NAME}' via nssm...")
             _run([nssm, "install", SERVICE_NAME, exe])
-            _run([nssm, "set", SERVICE_NAME, "DisplayName", "Docker Global"])
+            _run([nssm, "set", SERVICE_NAME, "DisplayName", "Portly"])
             _run([nssm, "set", SERVICE_NAME, "Start", "SERVICE_AUTO_START"])
             _run([nssm, "set", SERVICE_NAME, "AppStdout", str(APP_DIR / "service.log")])
             _run([nssm, "set", SERVICE_NAME, "AppStderr", str(APP_DIR / "service.log")])
@@ -577,14 +577,14 @@ def service_install():
         else:
             print("Install nssm first: winget install nssm")
     elif SYSTEM == "Linux":
-        unit = f"[Unit]\nDescription=Docker Global\nAfter=network.target\n\n[Service]\nExecStart={exe}\nRestart=on-failure\n\n[Install]\nWantedBy=multi-user.target\n"
+        unit = f"[Unit]\nDescription=Portly\nAfter=network.target\n\n[Service]\nExecStart={exe}\nRestart=on-failure\n\n[Install]\nWantedBy=multi-user.target\n"
         Path(f"/etc/systemd/system/{SERVICE_NAME}.service").write_text(unit)
         _run(["systemctl", "daemon-reload"])
         _run(["systemctl", "enable", "--now", SERVICE_NAME])
         print("Installed and started.")
     elif SYSTEM == "Darwin":
-        plist = f'<?xml version="1.0" encoding="UTF-8"?>\n<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">\n<plist version="1.0"><dict><key>Label</key><string>com.docker-global</string><key>ProgramArguments</key><array><string>{exe}</string></array><key>RunAtLoad</key><true/><key>KeepAlive</key><true/></dict></plist>'
-        p = Path.home() / "Library/LaunchAgents/com.docker-global.plist"
+        plist = f'<?xml version="1.0" encoding="UTF-8"?>\n<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">\n<plist version="1.0"><dict><key>Label</key><string>com.portly</string><key>ProgramArguments</key><array><string>{exe}</string></array><key>RunAtLoad</key><true/><key>KeepAlive</key><true/></dict></plist>'
+        p = Path.home() / "Library/LaunchAgents/com.portly.plist"
         p.write_text(plist)
         _run(["launchctl", "load", str(p)])
         print("Installed and started.")
@@ -604,7 +604,7 @@ def service_uninstall():
         Path(f"/etc/systemd/system/{SERVICE_NAME}.service").unlink(missing_ok=True)
         _run(["systemctl", "daemon-reload"])
     elif SYSTEM == "Darwin":
-        p = Path.home() / "Library/LaunchAgents/com.docker-global.plist"
+        p = Path.home() / "Library/LaunchAgents/com.portly.plist"
         _run(["launchctl", "unload", str(p)])
         p.unlink(missing_ok=True)
     print(f"Service '{SERVICE_NAME}' removed.")
@@ -616,7 +616,7 @@ def run_server():
     proxy_port = config["proxy_port"]
     ps = f":{proxy_port}" if proxy_port != 80 else ""
 
-    print(f"\n  docker-global")
+    print(f"\n  portly")
     print(f"  Domain: *{domain}{ps}")
     print(f"  Config: {CONFIG_PATH}\n")
 
@@ -651,8 +651,8 @@ def run_server():
 def cli_alias(args):
     if len(args) < 1:
         print("Usage:")
-        print("  docker-global alias <name> <port>")
-        print("  docker-global alias <name> --remove")
+        print("  portly alias <name> <port>")
+        print("  portly alias <name> --remove")
         return
     name = args[0]
     if len(args) > 1 and args[1] in ("--remove", "-r", "remove"):
@@ -690,7 +690,7 @@ def cli_alias(args):
 def cli_aliases():
     aliases = config.get("aliases", {})
     if not aliases:
-        print("No aliases. Add one: docker-global alias myapp 3000"); return
+        print("No aliases. Add one: portly alias myapp 3000"); return
     domain = config["domain"]
     ps = f":{config['proxy_port']}" if config["proxy_port"] != 80 else ""
     print(f"{'Name':<20} {'Port':<8} {'URL':<40} {'Status'}")
@@ -731,21 +731,21 @@ def main():
         except KeyboardInterrupt:
             print("\nShutting down.")
     elif cmd in ("help", "-h", "--help"):
-        print("""docker-global — Portless reverse proxy for local & Docker services
+        print("""portly — Portless reverse proxy for local & Docker services
 
 Usage:
-  docker-global                          Start proxy + dashboard
-  docker-global --no-browser             Start without opening browser
+  portly                          Start proxy + dashboard
+  portly --no-browser             Start without opening browser
 
-  docker-global alias <name> <port>      Map name.localhost -> localhost:port
-  docker-global alias <name> --remove    Remove alias
-  docker-global aliases                  List all aliases
+  portly alias <name> <port>      Map name.localhost -> localhost:port
+  portly alias <name> --remove    Remove alias
+  portly aliases                  List all aliases
 
-  docker-global install                  Install as system service
-  docker-global uninstall                Remove system service
+  portly install                  Install as system service
+  portly uninstall                Remove system service
 """)
     else:
-        print(f"Unknown: {cmd}. Run 'docker-global help'.")
+        print(f"Unknown: {cmd}. Run 'portly help'.")
 
 
 if __name__ == "__main__":

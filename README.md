@@ -1,4 +1,4 @@
-# DockerGlobal
+# Portly
 
 A portless reverse proxy for local development. Access any service — Docker containers, npm dev servers, APIs — via clean URLs like `http://myapp.localhost` instead of remembering port numbers.
 
@@ -18,11 +18,11 @@ A portless reverse proxy for local development. Access any service — Docker co
 
 ```bash
 # Download from Releases or build from source
-docker-global
+portly
 
 # Add an alias — no need to change how you start your app
-docker-global alias myapp 3000
-docker-global alias api 8080
+portly alias myapp 3000
+portly alias api 8080
 
 # Now access them by name
 curl http://myapp.localhost
@@ -50,13 +50,13 @@ Three sources feed the route table:
 
 ### From Release
 
-Download from [Releases](../../releases), add to PATH, run `docker-global`.
+Download from [Releases](../../releases), add to PATH, run `portly`.
 
 ### From Source
 
 ```bash
-git clone https://github.com/Bedri-B/DockerGlobal.git
-cd DockerGlobal
+git clone https://github.com/Bedri-B/Portly.git
+cd Portly
 
 pip install pyinstaller
 cd web && npm install && npm run build && cd ..
@@ -71,16 +71,16 @@ python build.py
 ## CLI
 
 ```bash
-docker-global                          # Start proxy + open dashboard
-docker-global --no-browser             # Start without browser (service mode)
+portly                          # Start proxy + open dashboard
+portly --no-browser             # Start without browser (service mode)
 
-docker-global alias <name> <port>      # Map name.localhost -> localhost:port
-docker-global alias <name> --remove    # Remove alias
-docker-global aliases                  # List all aliases
+portly alias <name> <port>      # Map name.localhost -> localhost:port
+portly alias <name> --remove    # Remove alias
+portly aliases                  # List all aliases
 
-docker-global install                  # Install as system service
-docker-global uninstall                # Remove system service
-docker-global help                     # Show help
+portly install                  # Install as system service
+portly uninstall                # Remove system service
+portly help                     # Show help
 ```
 
 ## Configuration

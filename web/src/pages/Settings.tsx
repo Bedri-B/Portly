@@ -67,7 +67,7 @@ export default function Settings() {
 
       <div className="info-banner">
         <Info size={16} style={{ flexShrink: 0, marginTop: 2 }} />
-        <span>Port changes require restarting <code>docker-global</code>. Domain and toggle changes apply immediately.</span>
+        <span>Port changes require restarting <code>portly</code>. Domain and toggle changes apply immediately.</span>
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, maxWidth: 720 }}>

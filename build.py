@@ -20,7 +20,7 @@ def build_web():
 
 
 def build_exe():
-    name = "docker-global"
+    name = "portly"
     exe_name = f"{name}.exe" if SYSTEM == "Windows" else name
 
     cmd = [

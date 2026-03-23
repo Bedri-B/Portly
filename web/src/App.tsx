@@ -12,7 +12,7 @@ function App() {
         <div className="sidebar-brand">
           <Box size={22} />
           <div>
-            <h1>Docker Global</h1>
+            <h1>Portly</h1>
             <span>Portless Proxy</span>
           </div>
         </div>
@@ -27,7 +27,7 @@ function App() {
             <Settings size={16} /> Settings
           </NavLink>
         </div>
-        <div className="sidebar-footer">docker-global</div>
+        <div className="sidebar-footer">portly</div>
       </nav>
       <div className="main">
         <Routes>
