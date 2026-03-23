@@ -18,6 +18,7 @@ export default function Settings() {
     web_port: 19802,
     https_enabled: true,
     docker_discovery: true,
+    scan_common: true,
   });
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState("");
@@ -42,7 +43,7 @@ export default function Settings() {
   const reset = () =>
     setForm({
       proxy_port: 80, https_port: 443, domain: ".localhost",
-      api_port: 19800, web_port: 19802, https_enabled: true, docker_discovery: true,
+      api_port: 19800, web_port: 19802, https_enabled: true, docker_discovery: true, scan_common: true,
     });
 
   if (isLoading) {

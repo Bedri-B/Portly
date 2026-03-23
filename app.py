@@ -50,7 +50,44 @@ DEFAULT_CONFIG = {
     "docker_discovery": True,
     "aliases": {},
     "scan_ports": [],
+    "scan_ranges": [],         # [[3000, 3010], [8080, 8090]]
+    "scan_common": True,       # scan well-known dev ports
 }
+
+# Well-known dev server ports — scanned when scan_common is True
+COMMON_DEV_PORTS = [
+    # Frontend
+    3000, 3001, 3002, 3003,    # React, Next.js, Remix
+    4000, 4200, 4321,          # AdonisJS, Angular, Astro
+    5173, 5174, 5175,          # Vite
+    5500, 5501,                # Live Server
+    8000, 8001,                # Various
+    8080, 8081, 8082,          # Common HTTP alt
+    8443,                      # Common HTTPS alt
+    8888, 8889,                # Jupyter
+    # Backend
+    3030, 3333,                # Various Node
+    4000,                      # Phoenix, AdonisJS
+    5000, 5001,                # Flask, .NET
+    5555,                      # Flower, Prisma Studio
+    6006,                      # Storybook
+    6379,                      # Redis
+    7860, 7861,                # Gradio
+    8787,                      # RStudio
+    8501, 8502,                # Streamlit
+    9000, 9090,                # Various
+    9229,                      # Node debugger
+    # Databases / tools
+    1433,                      # MSSQL
+    3306,                      # MySQL
+    5432, 5433, 5434, 5435,    # PostgreSQL
+    5672,                      # RabbitMQ
+    6379,                      # Redis
+    8083, 8086,                # InfluxDB
+    9200,                      # Elasticsearch
+    15672,                     # RabbitMQ management
+    27017,                     # MongoDB
+]
 
 
 def load_config() -> dict:
@@ -154,12 +191,50 @@ except ImportError:
 
 
 # ── Port Probing ─────────────────────────────────────────────────────────────
+from concurrent.futures import ThreadPoolExecutor
+
+
 def _port_is_open(port: int) -> bool:
     try:
         with socket.create_connection(("127.0.0.1", port), timeout=0.3):
             return True
     except (OSError, ConnectionRefusedError):
         return False
+
+
+def _scan_ports_parallel(ports: list[int]) -> set[int]:
+    """Probe a list of ports in parallel, return the set that are open."""
+    if not ports:
+        return set()
+    open_ports = set()
+    with ThreadPoolExecutor(max_workers=min(64, len(ports))) as pool:
+        results = pool.map(lambda p: (p, _port_is_open(p)), ports)
+        for port, is_open in results:
+            if is_open:
+                open_ports.add(port)
+    return open_ports
+
+
+def _collect_scan_ports() -> list[int]:
+    """Build the full list of ports to scan from config."""
+    ports = set(config.get("scan_ports", []))
+
+    # Ranges: [[3000, 3010], [8080, 8090]]
+    for r in config.get("scan_ranges", []):
+        if isinstance(r, list) and len(r) == 2:
+            lo, hi = int(r[0]), int(r[1])
+            ports.update(range(lo, hi + 1))
+
+    # Common dev ports
+    if config.get("scan_common", True):
+        ports.update(COMMON_DEV_PORTS)
+
+    # Exclude our own ports
+    own = {config.get("api_port", 19800), config.get("web_port", 19802),
+           config.get("proxy_port", 80), config.get("https_port", 443)}
+    ports -= own
+
+    return sorted(ports)
 
 
 # ── Docker Container Discovery (read-only) ──────────────────────────────────
@@ -229,18 +304,16 @@ class RouteRegistry:
                 "source": "alias",
             }
 
-        # 3. Auto-scanned ports
-        for port in config.get("scan_ports", []):
-            already = any(r["port"] == port for r in new_routes.values())
-            if already:
-                continue
-            if _port_is_open(port):
-                new_routes[f"port-{port}"] = {
-                    "port": port,
-                    "image": "",
-                    "state": "running",
-                    "source": "scan",
-                }
+        # 3. Auto-scanned ports (parallel)
+        known_ports = {r["port"] for r in new_routes.values()}
+        scan_candidates = [p for p in _collect_scan_ports() if p not in known_ports]
+        for port in _scan_ports_parallel(scan_candidates):
+            new_routes[f"port-{port}"] = {
+                "port": port,
+                "image": "",
+                "state": "running",
+                "source": "scan",
+            }
 
         with self._lock:
             self.routes = new_routes
@@ -432,13 +505,24 @@ class APIHandler(BaseHTTPRequestHandler):
         elif path == "/api/refresh":
             registry.refresh()
             self._json({"message": "Refreshed", "services": registry.all_services()})
-        elif path == "/api/scan-ports":
+        elif path == "/api/scan":
             try:
                 data = json.loads(self._body())
-                config["scan_ports"] = [int(p) for p in data.get("ports", [])]
+                if "ports" in data:
+                    config["scan_ports"] = [int(p) for p in data["ports"]]
+                if "ranges" in data:
+                    config["scan_ranges"] = [[int(r[0]), int(r[1])] for r in data["ranges"]]
+                if "common" in data:
+                    config["scan_common"] = bool(data["common"])
                 save_config(config)
                 registry.refresh()
-                self._json({"message": "Scan ports updated", "scan_ports": config["scan_ports"]})
+                self._json({
+                    "message": "Scan config updated",
+                    "scan_ports": config["scan_ports"],
+                    "scan_ranges": config["scan_ranges"],
+                    "scan_common": config["scan_common"],
+                    "total_scan_targets": len(_collect_scan_ports()),
+                })
             except Exception as e:
                 self._err(str(e))
         else:
@@ -451,7 +535,8 @@ class APIHandler(BaseHTTPRequestHandler):
             try:
                 new = json.loads(self._body())
                 allowed = {"proxy_port", "https_port", "domain", "api_port", "web_port",
-                           "https_enabled", "docker_discovery", "aliases", "scan_ports"}
+                           "https_enabled", "docker_discovery", "aliases",
+                           "scan_ports", "scan_ranges", "scan_common"}
                 for k, v in new.items():
                     if k in allowed:
                         config[k] = v

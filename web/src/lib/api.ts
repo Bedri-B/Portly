@@ -20,6 +20,7 @@ export interface AppConfig {
   web_port: number;
   https_enabled: boolean;
   docker_discovery: boolean;
+  scan_common: boolean;
 }
 
 export interface StatusResponse {
@@ -27,6 +28,7 @@ export interface StatusResponse {
   config: AppConfig;
   aliases: Record<string, number>;
   scan_ports: number[];
+  scan_ranges: [number, number][];
 }
 
 export const fetchStatus = async (): Promise<StatusResponse> => {
@@ -54,7 +56,7 @@ export const refreshServices = async () => {
   return res.json();
 };
 
-export const updateConfig = async (cfg: Partial<AppConfig & { scan_ports: number[] }>) => {
+export const updateConfig = async (cfg: Partial<AppConfig>) => {
   const res = await fetch(`${API}/api/config`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
@@ -63,11 +65,15 @@ export const updateConfig = async (cfg: Partial<AppConfig & { scan_ports: number
   return res.json();
 };
 
-export const updateScanPorts = async (ports: number[]) => {
-  const res = await fetch(`${API}/api/scan-ports`, {
+export const updateScan = async (scan: {
+  ports?: number[];
+  ranges?: [number, number][];
+  common?: boolean;
+}) => {
+  const res = await fetch(`${API}/api/scan`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ ports }),
+    body: JSON.stringify(scan),
   });
   return res.json();
 };
