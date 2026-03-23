@@ -1,5 +1,10 @@
 # Portly
 
+[![Build & Release](https://github.com/Bedri-B/Portly/actions/workflows/build.yml/badge.svg)](https://github.com/Bedri-B/Portly/actions/workflows/build.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![GitHub release](https://img.shields.io/github/v/release/Bedri-B/Portly)](https://github.com/Bedri-B/Portly/releases/latest)
+[![GitHub stars](https://img.shields.io/github/stars/Bedri-B/Portly)](https://github.com/Bedri-B/Portly/stargazers)
+
 > Stop memorizing port numbers. Access every local service by name.
 
 **Portly** is a local reverse proxy that lets you reach any service — Docker containers, dev servers, APIs — through clean URLs like `http://myapp.localhost` instead of `localhost:3000`.
@@ -13,6 +18,22 @@ portly alias api 8080
 curl http://myapp.localhost    # -> localhost:3000
 curl https://api.localhost     # -> localhost:8080
 ```
+
+---
+
+## Table of Contents
+
+- [Install](#install)
+- [How it works](#how-it-works)
+- [CLI](#cli)
+- [Dashboard](#dashboard)
+- [Configuration](#configuration)
+- [HTTPS](#https)
+- [API](#api)
+- [Running as a service](#running-as-a-service)
+- [Updating](#updating)
+- [Contributing](#contributing)
+- [License](#license)
 
 ## Install
 
@@ -30,7 +51,7 @@ irm https://raw.githubusercontent.com/Bedri-B/Portly/main/scripts/install.ps1 | 
 
 Downloads the latest release, puts it on your PATH, ready to go.
 
-## Uninstall
+### Uninstall
 
 **macOS / Linux:**
 
@@ -45,9 +66,7 @@ irm https://raw.githubusercontent.com/Bedri-B/Portly/main/scripts/uninstall.ps1 
 ```
 
 <details>
-<summary>Manual install / build from source</summary>
-
-Download a binary from [**Releases**](../../releases) and add it to your PATH, or build from source:
+<summary>Build from source</summary>
 
 ```bash
 git clone https://github.com/Bedri-B/Portly.git && cd Portly
@@ -73,22 +92,28 @@ Portly builds a route table from three sources:
 |--------|-------------|
 | **Aliases** | You map a name to a port: `portly alias myapp 3000` |
 | **Docker** | Auto-discovers running containers with published ports |
-| **Port scan** | Probes a list of ports you configure, registers what's listening |
+| **Port scan** | Probes common dev ports and custom ranges for anything listening |
 
 The route table refreshes every 10 seconds. Aliases are persisted in `config.json`.
 
 ## CLI
 
 ```
-portly                            Start proxy + open dashboard
-portly --no-browser               Start without opening browser
+portly                            Start server + open dashboard
+                                  (opens dashboard if already running)
+portly start                      Start server in background
+portly stop                       Stop background server
+portly restart                    Restart server
+portly status                     Show running status
 
 portly alias <name> <port>        Map name.localhost -> localhost:port
 portly alias <name> --remove      Remove an alias
 portly aliases                    List all aliases with status
 
-portly install                    Install as a system service
+portly install                    Install as system service (start on boot)
 portly uninstall                  Remove system service
+
+portly update                     Check for updates and install
 portly help                       Show help
 ```
 
@@ -98,7 +123,7 @@ Portly ships with a web dashboard at `http://localhost:19802`:
 
 - **Services** — all active routes with clickable URLs and source labels
 - **Aliases** — add/remove aliases, configure port scanning
-- **Settings** — domain suffix, ports, HTTPS toggle, Docker discovery
+- **Settings** — domain, ports, HTTPS, Docker discovery, startup, and updates
 
 ## Configuration
 
@@ -111,20 +136,28 @@ A `config.json` is created next to the binary on first run:
   "domain": ".localhost",
   "https_enabled": true,
   "docker_discovery": true,
+  "auto_start": true,
+  "auto_update": false,
   "aliases": {},
-  "scan_ports": []
+  "scan_ports": [],
+  "scan_ranges": [],
+  "scan_common": true
 }
 ```
 
 | Key | Default | What it does |
 |-----|---------|--------------|
-| `proxy_port` | `80` | HTTP proxy. Set to 80 for portless URLs |
+| `proxy_port` | `80` | HTTP proxy. Use 80 for portless URLs |
 | `https_port` | `443` | HTTPS proxy |
 | `domain` | `.localhost` | Suffix for service URLs |
 | `https_enabled` | `true` | HTTPS with auto-generated certs |
 | `docker_discovery` | `true` | Auto-detect Docker container ports |
+| `auto_start` | `true` | Start portly on system boot |
+| `auto_update` | `false` | Auto-install updates (checks hourly) |
 | `aliases` | `{}` | Name-to-port mappings |
-| `scan_ports` | `[]` | Ports to probe for running services |
+| `scan_ports` | `[]` | Extra individual ports to probe |
+| `scan_ranges` | `[]` | Port ranges to scan, e.g. `[[3000, 3010]]` |
+| `scan_common` | `true` | Scan ~50 well-known dev server ports |
 
 Everything is also configurable from the dashboard.
 
@@ -140,7 +173,7 @@ Certs are stored in `certs/` next to the binary. If port 443 requires elevated p
 
 ## API
 
-All endpoints are on the API port (default `19800`).
+All endpoints are on the API port (default `19800`) and also proxied through the dashboard port (`19802`).
 
 ```bash
 # List all services
@@ -161,15 +194,19 @@ curl localhost:19800/api/status
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| `GET` | `/api/status` | Services, config, aliases |
+| `GET` | `/api/status` | Services, config, aliases, version |
 | `GET` | `/api/services` | All routed services |
 | `GET` | `/api/aliases` | All aliases |
-| `POST` | `/api/aliases` | Add alias |
+| `POST` | `/api/aliases` | Add alias `{"name", "port"}` |
 | `DELETE` | `/api/aliases/{name}` | Remove alias |
 | `POST` | `/api/refresh` | Force refresh routes |
 | `GET` | `/api/config` | Current config |
 | `PUT` | `/api/config` | Update config |
-| `POST` | `/api/scan-ports` | Set scan ports |
+| `POST` | `/api/scan` | Update scan config |
+| `GET` | `/api/update/check` | Check for updates |
+| `POST` | `/api/update/apply` | Download and install update |
+| `POST` | `/api/startup/install` | Enable start-on-boot |
+| `POST` | `/api/startup/uninstall` | Disable start-on-boot |
 
 </details>
 
@@ -180,8 +217,31 @@ portly install      # auto-starts on boot
 portly uninstall    # remove
 ```
 
-Uses **nssm** on Windows, **systemd** on Linux, **launchd** on macOS.
+Uses **nssm** on Windows, **systemd** on Linux, **launchd** on macOS. Also configurable from the dashboard Settings page.
+
+## Updating
+
+```bash
+portly update       # check and install latest release
+```
+
+Or enable auto-updates in the dashboard (Settings > Updates) or in `config.json`:
+
+```json
+{ "auto_update": true }
+```
+
+When enabled, portly checks for updates hourly and installs them automatically.
+
+## Contributing
+
+Contributions are welcome! Please read the [Contributing Guide](CONTRIBUTING.md) before submitting a PR.
+
+- [Report a bug](https://github.com/Bedri-B/Portly/issues/new?template=bug_report.yml)
+- [Request a feature](https://github.com/Bedri-B/Portly/issues/new?template=feature_request.yml)
+
+This project follows the [Contributor Covenant Code of Conduct](CODE_OF_CONDUCT.md).
 
 ## License
 
-MIT
+[MIT](LICENSE) &copy; [Bedri B.](https://github.com/Bedri-B)
