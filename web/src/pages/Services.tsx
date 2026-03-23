@@ -22,7 +22,7 @@ const SOURCE_LABELS: Record<string, { label: string; color: string }> = {
 
 export default function Services() {
   const qc = useQueryClient();
-  const { data, isLoading } = useQuery<StatusResponse>({
+  const { data } = useQuery<StatusResponse>({
     queryKey: ["status"],
     queryFn: fetchStatus,
   });
@@ -31,7 +31,7 @@ export default function Services() {
     onSettled: () => qc.invalidateQueries({ queryKey: ["status"] }),
   });
 
-  if (isLoading || !data) {
+  if (!data) {
     return (
       <div className="page">
         <div className="loading">

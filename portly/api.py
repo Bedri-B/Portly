@@ -4,9 +4,11 @@ import json
 from http.server import BaseHTTPRequestHandler
 from urllib.parse import urlparse
 
-from portly.config import config, save_config
+from portly.config import config, save_config, VERSION
 from portly.registry import registry
 from portly.discovery import collect_scan_ports
+from portly.updater import check_update, perform_update
+from portly.service import service_install, service_uninstall
 
 
 class APIHandler(BaseHTTPRequestHandler):
@@ -43,6 +45,8 @@ class APIHandler(BaseHTTPRequestHandler):
                 "config": {k: v for k, v in config.items() if k != "aliases"},
                 "aliases": config.get("aliases", {}),
                 "scan_ports": config.get("scan_ports", []),
+                "scan_ranges": config.get("scan_ranges", []),
+                "version": VERSION,
             })
         elif path == "/api/services":
             self._json({"services": registry.all_services()})
@@ -50,6 +54,8 @@ class APIHandler(BaseHTTPRequestHandler):
             self._json({"aliases": config.get("aliases", {})})
         elif path == "/api/config":
             self._json({"config": config})
+        elif path == "/api/update/check":
+            self._json(check_update())
         else:
             self._err("Not found", 404)
 
@@ -91,6 +97,24 @@ class APIHandler(BaseHTTPRequestHandler):
                 })
             except Exception as e:
                 self._err(str(e))
+        elif path == "/api/update/apply":
+            self._json(perform_update())
+        elif path == "/api/startup/install":
+            try:
+                service_install()
+                config["auto_start"] = True
+                save_config(config)
+                self._json({"message": "Auto-start enabled.", "auto_start": True})
+            except Exception as e:
+                self._err(str(e))
+        elif path == "/api/startup/uninstall":
+            try:
+                service_uninstall()
+                config["auto_start"] = False
+                save_config(config)
+                self._json({"message": "Auto-start disabled.", "auto_start": False})
+            except Exception as e:
+                self._err(str(e))
         else:
             self._err("Not found", 404)
 
@@ -102,7 +126,8 @@ class APIHandler(BaseHTTPRequestHandler):
                 new = json.loads(self._body())
                 allowed = {"proxy_port", "https_port", "domain", "api_port", "web_port",
                            "https_enabled", "docker_discovery", "aliases",
-                           "scan_ports", "scan_ranges", "scan_common"}
+                           "scan_ports", "scan_ranges", "scan_common",
+                           "auto_start", "auto_update"}
                 for k, v in new.items():
                     if k in allowed:
                         config[k] = v

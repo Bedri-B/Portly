@@ -11,7 +11,7 @@ import { Plus, Trash2, Loader2, Link, Radar, Info } from "lucide-react";
 
 export default function Aliases() {
   const qc = useQueryClient();
-  const { data, isLoading } = useQuery<StatusResponse>({
+  const { data } = useQuery<StatusResponse>({
     queryKey: ["status"],
     queryFn: fetchStatus,
   });
@@ -39,7 +39,7 @@ export default function Aliases() {
     onSettled: invalidate,
   });
 
-  if (isLoading || !data) {
+  if (!data) {
     return (
       <div className="page">
         <div className="loading"><Loader2 size={20} /> &nbsp;Loading...</div>

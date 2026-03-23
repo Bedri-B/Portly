@@ -31,3 +31,6 @@ service.log
 
 # Config (contains user-specific settings)
 config.json
+
+# Runtime
+portly.pid

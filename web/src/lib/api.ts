@@ -21,6 +21,8 @@ export interface AppConfig {
   https_enabled: boolean;
   docker_discovery: boolean;
   scan_common: boolean;
+  auto_start: boolean;
+  auto_update: boolean;
 }
 
 export interface StatusResponse {
@@ -29,6 +31,14 @@ export interface StatusResponse {
   aliases: Record<string, number>;
   scan_ports: number[];
   scan_ranges: [number, number][];
+  version: string;
+}
+
+export interface UpdateInfo {
+  available: boolean;
+  current: string;
+  latest: string;
+  download_url: string;
 }
 
 export const fetchStatus = async (): Promise<StatusResponse> => {
@@ -75,5 +85,26 @@ export const updateScan = async (scan: {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(scan),
   });
+  return res.json();
+};
+
+export const checkUpdate = async (): Promise<UpdateInfo> => {
+  const res = await fetch(`${API}/api/update/check`);
+  if (!res.ok) throw new Error("Failed to check for updates");
+  return res.json();
+};
+
+export const applyUpdate = async () => {
+  const res = await fetch(`${API}/api/update/apply`, { method: "POST" });
+  return res.json();
+};
+
+export const installStartup = async () => {
+  const res = await fetch(`${API}/api/startup/install`, { method: "POST" });
+  return res.json();
+};
+
+export const uninstallStartup = async () => {
+  const res = await fetch(`${API}/api/startup/uninstall`, { method: "POST" });
   return res.json();
 };

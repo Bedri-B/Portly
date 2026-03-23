@@ -27,7 +27,7 @@ function App() {
             <Settings size={16} /> Settings
           </NavLink>
         </div>
-        <div className="sidebar-footer">portly</div>
+        <div className="sidebar-footer">portly v1.0.0</div>
       </nav>
       <div className="main">
         <Routes>

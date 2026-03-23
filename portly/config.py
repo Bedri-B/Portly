@@ -25,6 +25,10 @@ CONFIG_PATH = APP_DIR / "config.json"
 CERT_DIR = APP_DIR / "certs"
 
 # ── Config ───────────────────────────────────────────────────────────────────
+GITHUB_REPO = "Bedri-B/Portly"
+VERSION = "1.0.0"
+PID_PATH = APP_DIR / "portly.pid"
+
 DEFAULT_CONFIG = {
     "proxy_port": 80,
     "https_port": 443,
@@ -37,6 +41,8 @@ DEFAULT_CONFIG = {
     "scan_ports": [],
     "scan_ranges": [],         # [[3000, 3010], [8080, 8090]]
     "scan_common": True,       # scan well-known dev ports
+    "auto_start": True,        # start on boot
+    "auto_update": False,      # check & install updates automatically
 }
 
 # Well-known dev server ports — scanned when scan_common is True
