@@ -1,227 +1,167 @@
 # DockerGlobal
 
-A self-hosted Docker Compose management tool with a web dashboard and a portless reverse proxy. Manage all your compose stacks from a single UI, access containers by name instead of port numbers, and run it as a system service.
+A portless reverse proxy for local development. Access any service — Docker containers, npm dev servers, APIs — via clean URLs like `http://myapp.localhost` instead of remembering port numbers.
 
 ## Features
 
-- **Web Dashboard** — React-based UI to manage all Docker Compose stacks in one place
-- **Portless Reverse Proxy** — Access containers via `http://container_name.localhost` instead of remembering port numbers
-- **Docker Desktop Control** — Start, stop, and restart Docker Desktop from the dashboard
-- **Stack Management** — Start, stop, restart, and pull images for any compose stack
-- **Config & .env Editor** — Edit compose files and environment variables in-browser
-- **Live Logs** — View container logs directly from the dashboard
-- **REST API** — Full programmatic control over all operations
-- **System Service** — Install as a background service on Windows, Linux, or macOS
-- **Single Binary** — Ships as one executable with the React dashboard bundled in
+- **Portless URLs** — `http://myapp.localhost` instead of `localhost:3000`
+- **HTTPS** — Auto-generated TLS certs via mkcert or openssl: `https://myapp.localhost`
+- **Docker auto-discovery** — Running containers with published ports are detected automatically
+- **Static aliases** — Map any name to any local port, no command changes needed
+- **Port scanning** — Auto-detect services on configured ports
+- **Web dashboard** — Manage aliases, view all services, configure settings
+- **REST API** — Full programmatic control
+- **System service** — Run as a background service on Windows, Linux, or macOS
+- **Single binary** — One executable with the dashboard bundled in
 
 ## Quick Start
 
-### From Release
-
-Download the latest binary from [Releases](../../releases) for your platform, place it on your PATH, and run:
-
 ```bash
+# Download from Releases or build from source
 docker-global
+
+# Add an alias — no need to change how you start your app
+docker-global alias myapp 3000
+docker-global alias api 8080
+
+# Now access them by name
+curl http://myapp.localhost
+curl https://api.localhost
 ```
 
-This starts all servers and opens the dashboard in your browser.
+Your existing `npm run dev`, `python manage.py runserver`, etc. stay exactly the same. Just add an alias and access by name.
+
+## How It Works
+
+```
+http://myapp.localhost  ──→  reverse proxy (port 80)  ──→  localhost:3000
+https://api.localhost   ──→  reverse proxy (port 443)  ──→  localhost:8080
+```
+
+Three sources feed the route table:
+
+| Source | How it works |
+|--------|-------------|
+| **Docker** | Auto-discovers running containers with published ports |
+| **Aliases** | Manual `name → port` mappings in config |
+| **Port scan** | Probes configured ports, registers whatever is listening |
+
+## Installation
+
+### From Release
+
+Download from [Releases](../../releases), add to PATH, run `docker-global`.
 
 ### From Source
 
 ```bash
-# Clone
 git clone https://github.com/Bedri-B/DockerGlobal.git
 cd DockerGlobal
 
-# Install Python dependencies
 pip install pyinstaller
-
-# Install and build the web dashboard
-cd web
-npm install
-npm run build
-cd ..
+cd web && npm install && npm run build && cd ..
 
 # Run directly
 python app.py
 
-# Or build the executable
+# Or build executable
 python build.py
-./dist/docker-global
 ```
 
-## Architecture
+## CLI
 
-DockerGlobal runs three servers:
+```bash
+docker-global                          # Start proxy + open dashboard
+docker-global --no-browser             # Start without browser (service mode)
 
-| Server | Default Port | Purpose |
-|--------|-------------|---------|
-| **Dashboard** | `19802` | React web UI |
-| **API** | `19800` | REST API for all operations |
-| **Proxy** | `80` | Reverse proxy mapping `name.localhost` to container ports |
+docker-global alias <name> <port>      # Map name.localhost -> localhost:port
+docker-global alias <name> --remove    # Remove alias
+docker-global aliases                  # List all aliases
 
-All ports and the domain suffix are configurable via `config.json` or the Settings page.
-
-## Portless Reverse Proxy
-
-Instead of remembering which service is on which port:
-
+docker-global install                  # Install as system service
+docker-global uninstall                # Remove system service
+docker-global help                     # Show help
 ```
-http://localhost:5435   →   http://global_postgres.localhost
-http://localhost:6385   →   http://global_redis.localhost
-http://localhost:5053   →   http://global_pgadmin.localhost
-```
-
-The proxy listens on port 80 by default so URLs are clean (no port suffix). If port 80 is unavailable, it falls back to `19801`.
-
-**Fuzzy matching** is supported: `postgres.localhost` will match `global_postgres`.
 
 ## Configuration
 
-A `config.json` file is created on first run next to the executable:
+Auto-created at `config.json` next to the executable:
 
 ```json
 {
   "proxy_port": 80,
-  "domain": ".localhost",
+  "https_port": 443,
   "api_port": 19800,
-  "web_port": 19802
+  "web_port": 19802,
+  "domain": ".localhost",
+  "https_enabled": true,
+  "docker_discovery": true,
+  "aliases": {
+    "myapp": 3000,
+    "api": 8080
+  },
+  "scan_ports": [3000, 5173, 8080]
 }
 ```
 
 | Key | Default | Description |
 |-----|---------|-------------|
-| `proxy_port` | `80` | Port for the reverse proxy. Use `80` for portless URLs |
-| `domain` | `.localhost` | Domain suffix for service URLs |
-| `api_port` | `19800` | Port for the REST API |
-| `web_port` | `19802` | Port for the web dashboard |
+| `proxy_port` | `80` | HTTP proxy port (80 = no port in URLs) |
+| `https_port` | `443` | HTTPS proxy port |
+| `domain` | `.localhost` | Domain suffix (`.localhost`, `.local`, etc.) |
+| `https_enabled` | `true` | Enable HTTPS proxy with auto-generated certs |
+| `docker_discovery` | `true` | Auto-discover Docker container ports |
+| `aliases` | `{}` | Static name-to-port mappings |
+| `scan_ports` | `[]` | Ports to auto-scan for running services |
 
-Edit via the **Settings** tab in the dashboard or directly in the file. Port changes require a restart.
+All settings are also editable from the web dashboard's **Settings** page.
 
-## CLI Usage
+## HTTPS
 
-```bash
-docker-global                # Start servers + open browser
-docker-global --no-browser   # Start servers without opening browser (service mode)
-docker-global install        # Install as a system service
-docker-global uninstall      # Remove the system service
-docker-global status         # Check service status
-```
+HTTPS is enabled by default on port 443. Certificates are auto-generated:
 
-## Installing as a Service
+1. **mkcert** (recommended) — If installed, generates locally-trusted certs. Install: `brew install mkcert` / `choco install mkcert`
+2. **openssl** — Falls back to self-signed certs (browser warning on first visit)
+3. **Python** — Last resort, requires `cryptography` package
 
-### Windows
-
-Requires [nssm](https://nssm.cc/) for best results:
-
-```bash
-winget install nssm
-docker-global install
-```
-
-Or use `sc.exe` (run as Administrator):
-
-```bash
-docker-global install
-```
-
-### Linux
-
-Installs a systemd unit:
-
-```bash
-sudo docker-global install
-```
-
-### macOS
-
-Installs a launchd plist:
-
-```bash
-docker-global install
-```
+Certs are stored in `certs/` next to the executable.
 
 ## REST API
 
-All endpoints are served from the API port (default `19800`).
-
-### Status
+All endpoints on the API port (default `19800`).
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| `GET` | `/api/status` | Full status: Docker Desktop, all stacks, services, config |
-| `GET` | `/api/stacks` | List all stack names |
-| `GET` | `/api/services` | List all services with portless URLs |
-| `GET` | `/api/config` | Current configuration |
-| `POST` | `/api/refresh` | Force refresh all caches |
+| `GET` | `/api/status` | All services, config, aliases |
+| `GET` | `/api/services` | List all routed services |
+| `GET` | `/api/aliases` | List aliases |
+| `POST` | `/api/aliases` | Add alias `{"name": "x", "port": 3000}` |
+| `DELETE` | `/api/aliases/{name}` | Remove alias |
+| `POST` | `/api/refresh` | Force refresh route table |
+| `GET` | `/api/config` | Current config |
+| `PUT` | `/api/config` | Update config |
+| `POST` | `/api/scan-ports` | Set scan ports `{"ports": [3000, 5173]}` |
 
-### Docker Desktop
+## Dashboard
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `POST` | `/api/docker/start` | Start Docker Desktop |
-| `POST` | `/api/docker/stop` | Stop Docker Desktop |
-| `POST` | `/api/docker/restart` | Restart Docker Desktop |
+Open `http://localhost:19802` (auto-opens on start):
 
-### Stack Operations
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `GET` | `/api/stacks/{name}/status` | Container status for a stack |
-| `POST` | `/api/stacks/{name}/up` | Start a stack (`docker compose up -d`) |
-| `POST` | `/api/stacks/{name}/down` | Stop a stack (`docker compose down`) |
-| `POST` | `/api/stacks/{name}/restart` | Restart a stack |
-| `POST` | `/api/stacks/{name}/pull` | Pull latest images |
-| `GET` | `/api/stacks/{name}/logs?tail=200` | Get recent logs |
-| `GET` | `/api/stacks/{name}/env` | Read `.env` file |
-| `PUT` | `/api/stacks/{name}/env` | Write `.env` file |
-| `GET` | `/api/stacks/{name}/config` | Read compose config |
-| `PUT` | `/api/stacks/{name}/config` | Write compose config |
-
-### Configuration
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `PUT` | `/api/config` | Update configuration |
+| Page | Purpose |
+|------|---------|
+| **Services** | All routed services with clickable URLs, source badges (Docker/Alias/Scan) |
+| **Aliases** | Add/remove aliases, configure port scanning |
+| **Settings** | Domain, ports, HTTPS toggle, Docker discovery toggle |
 
 ## Building
 
-### Local Build
+```bash
+python build.py    # Builds React frontend + packages into single exe
+```
+
+Push a tag for CI release:
 
 ```bash
-# Build React frontend + Python executable
-python build.py
-```
-
-The output is `dist/docker-global` (or `docker-global.exe` on Windows).
-
-### CI/CD
-
-Push a tag to trigger cross-platform builds:
-
-```bash
-git tag v1.0.0
-git push origin v1.0.0
-```
-
-This builds binaries for Windows, Linux, and macOS via GitHub Actions and creates a release.
-
-## Project Structure
-
-```
-DockerGlobal/
-├── app.py              # Python server: API + proxy + static file server
-├── build.py            # Build script (React + PyInstaller)
-├── requirements.txt    # Python dependencies
-├── web/                # React + Vite + TypeScript dashboard
-│   ├── src/
-│   │   ├── pages/      # Overview, Services, Stacks, Settings
-│   │   ├── lib/api.ts  # API client
-│   │   └── ...
-│   └── package.json
-└── .github/
-    └── workflows/
-        └── build.yml   # Cross-platform CI build + release
+git tag v2.0.0 && git push origin v2.0.0
 ```
 
 ## License
