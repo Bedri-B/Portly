@@ -11,6 +11,7 @@ import {
   Lock,
   Zap,
   Copy,
+  Check,
 } from "lucide-react";
 import { useState } from "react";
 
@@ -95,66 +96,78 @@ export default function Services() {
           </p>
         </div>
       ) : (
-        <div className="services-list">
-          {services.map((s, i) => {
-            const meta = SOURCE_META[s.source] || SOURCE_META.unknown;
-            const { Icon } = meta;
-            return (
-              <div
-                key={s.name}
-                className="svc-card"
-                style={{ animationDelay: `${i * 0.03}s` }}
-              >
-                <div className="svc-card-header">
-                  <span className={`dot ${s.state === "running" ? "dot-green" : "dot-red"}`} />
-                  <span className="svc-name">{s.name}</span>
-                  <span className={`badge ${meta.color}`} style={{ marginLeft: "auto" }}>
-                    <Icon size={10} /> {meta.label}
-                  </span>
-                </div>
-
-                <div className="svc-card-urls">
-                  {/* HTTP link */}
-                  <div className="svc-url-row">
-                    <Globe size={12} className="svc-url-icon" />
-                    <a href={s.http_url} target="_blank" rel="noopener" className="svc-url-link">
-                      {s.http_url}
-                    </a>
-                    <button
-                      className="svc-url-copy"
-                      onClick={() => handleCopy(s.http_url)}
-                      title="Copy URL"
-                    >
-                      {copied === s.http_url ? "Copied!" : <Copy size={12} />}
-                    </button>
-                  </div>
-
-                  {/* HTTPS link (when enabled) */}
-                  {httpsOn && s.https_url && (
-                    <div className="svc-url-row">
-                      <Lock size={12} className="svc-url-icon" style={{ color: "var(--green)" }} />
-                      <a href={s.https_url} target="_blank" rel="noopener" className="svc-url-link">
-                        {s.https_url}
+        <table className="svc-table">
+          <thead>
+            <tr>
+              <th style={{ width: 32 }}></th>
+              <th>Name</th>
+              <th>HTTP</th>
+              {httpsOn && <th>HTTPS</th>}
+              <th>Target</th>
+              <th>Source</th>
+            </tr>
+          </thead>
+          <tbody>
+            {services.map((s, i) => {
+              const meta = SOURCE_META[s.source] || SOURCE_META.unknown;
+              const { Icon } = meta;
+              return (
+                <tr key={s.name} style={{ animationDelay: `${i * 0.02}s` }}>
+                  <td>
+                    <span className={`dot ${s.state === "running" ? "dot-green" : "dot-red"}`} />
+                  </td>
+                  <td>
+                    <span className="svc-name">{s.name}</span>
+                  </td>
+                  <td>
+                    <div className="svc-url-cell">
+                      <a href={s.http_url} target="_blank" rel="noopener" className="svc-url-link">
+                        {s.http_url}
                       </a>
                       <button
                         className="svc-url-copy"
-                        onClick={() => handleCopy(s.https_url!)}
-                        title="Copy URL"
+                        onClick={() => handleCopy(s.http_url)}
+                        title="Copy"
                       >
-                        {copied === s.https_url ? "Copied!" : <Copy size={12} />}
+                        {copied === s.http_url ? <Check size={12} /> : <Copy size={12} />}
                       </button>
                     </div>
+                  </td>
+                  {httpsOn && (
+                    <td>
+                      {s.https_url ? (
+                        <div className="svc-url-cell">
+                          <a href={s.https_url} target="_blank" rel="noopener" className="svc-url-link svc-url-https">
+                            {s.https_url}
+                          </a>
+                          <button
+                            className="svc-url-copy"
+                            onClick={() => handleCopy(s.https_url!)}
+                            title="Copy"
+                          >
+                            {copied === s.https_url ? <Check size={12} /> : <Copy size={12} />}
+                          </button>
+                        </div>
+                      ) : (
+                        <span style={{ color: "var(--text-muted)", fontSize: 12 }}>—</span>
+                      )}
+                    </td>
                   )}
-                </div>
-
-                <div className="svc-card-footer">
-                  <ArrowRight size={12} style={{ color: "var(--text-muted)" }} />
-                  <span className="svc-direct">localhost:{s.port}</span>
-                </div>
-              </div>
-            );
-          })}
-        </div>
+                  <td>
+                    <span className="svc-target">
+                      <ArrowRight size={11} /> localhost:{s.port}
+                    </span>
+                  </td>
+                  <td>
+                    <span className={`badge ${meta.color}`}>
+                      <Icon size={10} /> {meta.label}
+                    </span>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
       )}
     </div>
   );

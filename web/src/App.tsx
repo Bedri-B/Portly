@@ -1,8 +1,7 @@
 import { Routes, Route, NavLink, Navigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { Globe, Link, Settings, Zap, Activity, RotateCcw } from "lucide-react";
-import { fetchStatus, restartServer, type StatusResponse } from "./lib/api";
-import { useState } from "react";
+import { Globe, Link, Settings, Zap, Activity } from "lucide-react";
+import { fetchStatus, type StatusResponse } from "./lib/api";
 import "./App.css";
 import Services from "./pages/Services";
 import Aliases from "./pages/Aliases";
@@ -13,21 +12,8 @@ function App() {
     queryKey: ["status"],
     queryFn: fetchStatus,
   });
-  const [restarting, setRestarting] = useState(false);
 
   const serviceCount = data?.services.length ?? 0;
-
-  const handleRestart = async () => {
-    setRestarting(true);
-    try {
-      await restartServer();
-    } catch { /* server will disconnect */ }
-    // Wait for server to come back
-    setTimeout(() => {
-      setRestarting(false);
-      window.location.reload();
-    }, 3000);
-  };
 
   return (
     <div className="app">
@@ -54,29 +40,13 @@ function App() {
           </NavLink>
         </div>
         <div className="sidebar-footer">
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-              <Activity size={11} style={{ color: "var(--green)" }} />
-              <span>{data?.version ? `v${data.version}` : "..."}</span>
-            </div>
-            <button
-              className="sidebar-restart"
-              onClick={handleRestart}
-              disabled={restarting}
-              title="Restart server"
-            >
-              <RotateCcw size={12} className={restarting ? "spinning" : ""} />
-            </button>
+          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <Activity size={11} style={{ color: "var(--green)" }} />
+            <span>{data?.version ? `v${data.version}` : "..."}</span>
           </div>
         </div>
       </nav>
       <div className="main">
-        {restarting && (
-          <div className="restart-overlay">
-            <RotateCcw size={24} className="spinning" />
-            <span>Restarting portly...</span>
-          </div>
-        )}
         <Routes>
           <Route path="/" element={<Navigate to="/services" replace />} />
           <Route path="/services" element={<Services />} />

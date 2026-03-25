@@ -9,6 +9,7 @@ import {
   regenerateCerts,
   removeCerts,
   fetchCertInfo,
+  restartServer,
   installStartup,
   uninstallStartup,
   type CertInfo,
@@ -16,7 +17,7 @@ import {
   type AppConfig,
   type UpdateInfo,
 } from "../lib/api";
-import { Save, Loader2, Info, RotateCcw, Lock, Globe, Download, RefreshCw, Power, Container, Trash2 } from "lucide-react";
+import { Save, Loader2, Info, RotateCcw, Lock, Globe, Download, RefreshCw, Power, Container, Trash2, RotateCw } from "lucide-react";
 
 export default function Settings() {
   const qc = useQueryClient();
@@ -50,6 +51,7 @@ export default function Settings() {
   const [httpsMsg, setHttpsMsg] = useState("");
   const [certInfo, setCertInfo] = useState<CertInfo | null>(null);
   const [certLoading, setCertLoading] = useState(false);
+  const [restarting, setRestarting] = useState(false);
 
   useEffect(() => {
     if (data?.config) setForm(data.config);
@@ -427,11 +429,23 @@ export default function Settings() {
       {/* Save bar */}
       <div style={{ marginTop: 24, display: "flex", gap: 8, alignItems: "center", paddingTop: 16, borderTop: "1px solid var(--border)" }}>
         {msg && (
-          <span style={{ fontSize: 13, color: msg.startsWith("Error") ? "var(--red)" : "var(--green)", marginRight: "auto" }}>
+          <span style={{ fontSize: 13, color: msg.startsWith("Error") ? "var(--red)" : "var(--green)" }}>
             {msg}
           </span>
         )}
         <div style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
+          <button
+            className="btn btn-ghost"
+            onClick={async () => {
+              setRestarting(true);
+              try { await restartServer(); } catch {}
+              setTimeout(() => window.location.reload(), 3000);
+            }}
+            disabled={restarting}
+          >
+            <RotateCw size={13} className={restarting ? "spinning" : ""} />
+            {restarting ? "Restarting..." : "Restart Server"}
+          </button>
           <button className="btn btn-ghost" onClick={reset}><RotateCcw size={13} /> Defaults</button>
           <button className="btn btn-primary" onClick={save} disabled={saving}>
             {saving ? <Loader2 size={13} style={{ animation: "spin 1s linear infinite" }} /> : <Save size={13} />}
@@ -439,6 +453,13 @@ export default function Settings() {
           </button>
         </div>
       </div>
+
+      {restarting && (
+        <div className="restart-overlay">
+          <RotateCw size={24} className="spinning" />
+          <span>Restarting portly...</span>
+        </div>
+      )}
     </div>
   );
 }

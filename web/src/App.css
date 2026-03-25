@@ -97,24 +97,6 @@
   font-family: var(--mono);
 }
 
-.sidebar-restart {
-  background: transparent;
-  color: var(--text-muted);
-  padding: 5px;
-  border-radius: var(--radius);
-  border: 1px solid transparent;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  transition: all var(--transition);
-}
-
-.sidebar-restart:hover {
-  color: var(--text);
-  border-color: var(--border);
-  background: var(--bg-elevated);
-}
-
 .spinning { animation: spin 1s linear infinite; }
 
 /* ─── Main Content ───────────────────────────────────────────────── */
@@ -130,7 +112,6 @@
 .page {
   padding: 36px 44px;
   flex: 1;
-  max-width: 1100px;
 }
 
 .page-header {
@@ -150,23 +131,6 @@
   display: flex;
   gap: 8px;
   align-items: center;
-}
-
-/* ─── Restart Overlay ────────────────────────────────────────────── */
-.restart-overlay {
-  position: absolute;
-  inset: 0;
-  background: rgba(10,10,12,0.85);
-  backdrop-filter: blur(8px);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 12px;
-  z-index: 50;
-  color: var(--text-dim);
-  font-size: 14px;
-  font-weight: 500;
 }
 
 /* ─── Buttons ────────────────────────────────────────────────────── */
@@ -284,61 +248,60 @@
 .dot-red { background: var(--red); box-shadow: 0 0 6px var(--red); }
 .dot-yellow { background: var(--yellow); }
 
-/* ─── Service Cards ──────────────────────────────────────────────── */
-.services-list {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
-  gap: 12px;
-}
-
-.svc-card {
+/* ─── Service Table ──────────────────────────────────────────────── */
+.svc-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
   background: var(--bg-card);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
-  padding: 16px 20px;
-  transition: all var(--transition);
-  animation: fadeIn 0.2s ease both;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
+  overflow: hidden;
 }
 
-.svc-card:hover {
-  border-color: var(--border-light);
-  box-shadow: var(--shadow-sm);
+.svc-table thead th {
+  text-align: left;
+  padding: 10px 16px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+  background: var(--bg-surface);
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
 }
 
-.svc-card-header {
-  display: flex;
-  align-items: center;
-  gap: 10px;
+.svc-table tbody tr {
+  animation: fadeIn 0.15s ease both;
+  transition: background var(--transition);
+}
+
+.svc-table tbody tr:hover {
+  background: var(--bg-card-hover);
+}
+
+.svc-table tbody td {
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+  font-size: 13px;
+  vertical-align: middle;
+}
+
+.svc-table tbody tr:last-child td {
+  border-bottom: none;
 }
 
 .svc-name {
-  font-weight: 700;
-  font-size: 15px;
+  font-weight: 600;
+  font-size: 14px;
   color: var(--text);
 }
 
-.svc-card-urls {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.svc-url-row {
+.svc-url-cell {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 5px 10px;
-  border-radius: 6px;
-  background: var(--bg-surface);
-  font-size: 12px;
-}
-
-.svc-url-icon {
-  color: var(--text-muted);
-  flex-shrink: 0;
+  gap: 6px;
 }
 
 .svc-url-link {
@@ -346,27 +309,25 @@
   font-size: 12px;
   color: var(--accent);
   text-decoration: none;
-  flex: 1;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
   transition: color var(--transition);
 }
 
 .svc-url-link:hover { color: var(--accent-hover); }
 
+.svc-url-link.svc-url-https { color: var(--green); }
+.svc-url-link.svc-url-https:hover { color: #34d399; }
+
 .svc-url-copy {
   background: transparent;
   border: none;
   color: var(--text-muted);
-  padding: 2px 4px;
+  padding: 3px;
   cursor: pointer;
-  font-size: 10px;
-  font-family: var(--mono);
   display: flex;
   align-items: center;
   border-radius: 4px;
   transition: all var(--transition);
+  flex-shrink: 0;
 }
 
 .svc-url-copy:hover {
@@ -374,18 +335,13 @@
   background: var(--bg-elevated);
 }
 
-.svc-card-footer {
+.svc-target {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--text-muted);
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding-top: 6px;
-  border-top: 1px solid var(--border);
-}
-
-.svc-direct {
-  font-family: var(--mono);
-  font-size: 11px;
-  color: var(--text-muted);
+  gap: 4px;
 }
 
 /* ─── Container / Alias Rows ─────────────────────────────────────── */
@@ -464,7 +420,22 @@
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 16px;
-  max-width: 800px;
+}
+
+.restart-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(10,10,12,0.85);
+  backdrop-filter: blur(8px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  z-index: 50;
+  color: var(--text-dim);
+  font-size: 14px;
+  font-weight: 500;
 }
 
 /* ─── Toggle ─────────────────────────────────────────────────────── */
