@@ -1,8 +1,9 @@
 import { Routes, Route, NavLink, Navigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { Globe, Link, Settings, Zap, Activity } from "lucide-react";
+import { Globe, Link, Settings, Activity } from "lucide-react";
 import { fetchStatus, type StatusResponse } from "@/lib/api";
 import { Badge } from "@/components/ui/badge";
+import { PortlyLogo } from "@/components/PortlyLogo";
 import Services from "@/pages/Services";
 import Aliases from "@/pages/Aliases";
 import SettingsPage from "@/pages/Settings";
@@ -20,7 +21,7 @@ function App() {
       {/* Sidebar */}
       <nav className="w-60 flex-shrink-0 border-r border-border bg-card flex flex-col">
         <div className="p-5 flex items-center gap-3">
-          <Zap size={22} className="text-primary" />
+          <PortlyLogo size={28} />
           <div>
             <h1 className="text-base font-bold tracking-tight">Portly</h1>
             <p className="text-xs text-muted-foreground">Portless Proxy</p>

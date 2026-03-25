@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="720" height="200" viewBox="0 0 720 200" fill="none">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="720" y2="200" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#0a0a14"/>
+      <stop offset="1" stop-color="#0f0f23"/>
+    </linearGradient>
+    <linearGradient id="arch" x1="30" y1="20" x2="130" y2="160" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#6366f1"/>
+      <stop offset="1" stop-color="#a78bfa"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="80" cy="80" r="60" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#6366f1" stop-opacity="0.12"/>
+      <stop offset="1" stop-color="#6366f1" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="720" height="200" rx="24" fill="url(#bg)"/>
+  <!-- Icon area -->
+  <g transform="translate(26 18)">
+    <rect width="164" height="164" rx="42" fill="#111128" stroke="white" stroke-opacity="0.05"/>
+    <rect width="164" height="164" rx="42" fill="url(#glow)"/>
+    <!-- Arch scaled to fit -->
+    <path d="M42 140V64C42 43.013 59.013 26 80 26C100.987 26 118 43.013 118 64V140" stroke="url(#arch)" stroke-width="12" stroke-linecap="round"/>
+    <line x1="32" y1="140" x2="132" y2="140" stroke="url(#arch)" stroke-width="12" stroke-linecap="round"/>
+    <circle cx="80" cy="68" r="7.5" fill="#38bdf8"/>
+    <circle cx="80" cy="92" r="6" fill="#818cf8" opacity="0.8"/>
+    <circle cx="80" cy="112" r="5" fill="#a78bfa" opacity="0.6"/>
+    <!-- Side nodes -->
+    <circle cx="18" cy="68" r="6" fill="#38bdf8" opacity="0.6"/>
+    <circle cx="18" cy="92" r="6" fill="#34d399" opacity="0.6"/>
+    <circle cx="146" cy="68" r="6" fill="#fbbf24" opacity="0.6"/>
+    <circle cx="146" cy="92" r="6" fill="#f87171" opacity="0.6"/>
+  </g>
+  <!-- Typography -->
+  <text x="220" y="95" fill="#ececf1" font-size="64" font-weight="700" font-family="system-ui, -apple-system, Segoe UI, sans-serif" letter-spacing="-1.5">Portly</text>
+  <text x="222" y="126" fill="#71717a" font-size="18" font-weight="500" font-family="system-ui, -apple-system, Segoe UI, sans-serif" letter-spacing="4">PORTLESS LOCAL PROXY</text>
+  <!-- Accent dots -->
+  <circle cx="222" cy="152" r="3.5" fill="#38bdf8" opacity="0.7"/>
+  <circle cx="236" cy="152" r="3.5" fill="#34d399" opacity="0.7"/>
+  <circle cx="250" cy="152" r="3.5" fill="#fbbf24" opacity="0.7"/>
+  <circle cx="264" cy="152" r="3.5" fill="#f87171" opacity="0.7"/>
+  <line x1="280" y1="152" x2="520" y2="152" stroke="#27272a" stroke-width="1"/>
+  <text x="222" y="174" fill="#52525b" font-size="14" font-weight="400" font-family="system-ui, -apple-system, Segoe UI, sans-serif">Access any local service by name instead of port number</text>
+</svg>
