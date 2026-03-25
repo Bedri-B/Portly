@@ -57,7 +57,7 @@ function App() {
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
               <Activity size={11} style={{ color: "var(--green)" }} />
-              <span>v{data?.version ?? "..."}</span>
+              <span>{data?.version ? `v${data.version}` : "..."}</span>
             </div>
             <button
               className="sidebar-restart"

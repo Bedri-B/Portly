@@ -1,6 +1,6 @@
 [project]
 name = "portly"
-version = "1.0.0"
+version = "3.0.0"
 description = "Portless reverse proxy for local dev — access any service by name"
 readme = "README.md"
 license = { text = "MIT" }

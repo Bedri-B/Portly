@@ -26,7 +26,7 @@ CERT_DIR = APP_DIR / "certs"
 
 # ── Config ───────────────────────────────────────────────────────────────────
 GITHUB_REPO = "Bedri-B/Portly"
-VERSION = "1.0.0"
+VERSION = "3.0.0"
 PID_PATH = APP_DIR / "portly.pid"
 
 DEFAULT_CONFIG = {
