@@ -11,7 +11,7 @@ import {
   type AppConfig,
   type UpdateInfo,
 } from "../lib/api";
-import { Save, Loader2, Info, RotateCcw, Lock, Globe, Download, RefreshCw, Power } from "lucide-react";
+import { Save, Loader2, Info, RotateCcw, Lock, Globe, Download, RefreshCw, Power, Container } from "lucide-react";
 
 export default function Settings() {
   const qc = useQueryClient();
@@ -31,17 +31,15 @@ export default function Settings() {
     scan_common: true,
     auto_start: true,
     auto_update: false,
+    docker_strip_prefix: "",
   });
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState("");
 
-  // Update check state
   const [updateInfo, setUpdateInfo] = useState<UpdateInfo | null>(null);
   const [checking, setChecking] = useState(false);
   const [updating, setUpdating] = useState(false);
   const [updateMsg, setUpdateMsg] = useState("");
-
-  // Startup state
   const [startupLoading, setStartupLoading] = useState(false);
 
   useEffect(() => {
@@ -65,7 +63,7 @@ export default function Settings() {
     setForm({
       proxy_port: 80, https_port: 443, domain: ".localhost",
       api_port: 19800, web_port: 19802, https_enabled: true,
-      docker_discovery: true, scan_common: true, auto_start: true, auto_update: false,
+      docker_discovery: true, scan_common: true, auto_start: true, auto_update: false, docker_strip_prefix: "",
     });
 
   const handleCheckUpdate = async () => {
@@ -104,136 +102,147 @@ export default function Settings() {
         setForm({ ...form, auto_start: true });
       }
       qc.invalidateQueries({ queryKey: ["status"] });
-    } catch {
-      // ignore
-    }
+    } catch { /* ignore */ }
     setStartupLoading(false);
   };
 
   if (!data) {
     return (
       <div className="page">
-        <div className="loading"><Loader2 size={20} /> &nbsp;Loading...</div>
+        <div className="loading"><Loader2 size={18} /> Loading settings...</div>
       </div>
     );
   }
 
-  const Field = ({ label, help, children }: { label: string; help?: string; children: React.ReactNode }) => (
-    <label style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-      <span style={{ fontSize: 13, fontWeight: 600 }}>{label}</span>
-      {children}
-      {help && <span style={{ fontSize: 11, color: "var(--text-dim)" }}>{help}</span>}
-    </label>
-  );
-
   return (
     <div className="page">
       <div className="page-header">
-        <h2>Settings</h2>
+        <div>
+          <h2>Settings</h2>
+          <p style={{ fontSize: 13, color: "var(--text-dim)", marginTop: 4 }}>
+            Configure proxy, discovery, and system options
+          </p>
+        </div>
         <span className="badge badge-gray">v{data.version}</span>
       </div>
 
       <div className="info-banner">
-        <Info size={16} style={{ flexShrink: 0, marginTop: 2 }} />
-        <span>Port changes require restarting <code>portly</code>. Domain and toggle changes apply immediately.</span>
+        <Info size={14} style={{ flexShrink: 0, marginTop: 2 }} />
+        <span>Port changes require restarting portly. Domain and toggle changes apply immediately.</span>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, maxWidth: 720 }}>
-        {/* Proxy */}
+      <div className="settings-grid">
+        {/* HTTP Proxy */}
         <div className="card">
           <div className="card-header">
-            <span className="card-title"><Globe size={15} /> HTTP Proxy</span>
+            <span className="card-title"><Globe size={14} /> HTTP Proxy</span>
           </div>
           <div className="card-body" style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-            <Field label="Domain suffix" help={`Services: http://name${form.domain}`}>
+            <div className="field">
+              <span className="field-label">Domain suffix</span>
               <input value={form.domain} onChange={(e) => setForm({ ...form, domain: e.target.value })} />
-            </Field>
-            <Field label="HTTP port" help="Use 80 for clean portless URLs.">
+              <span className="field-help">Services: http://name{form.domain}</span>
+            </div>
+            <div className="field">
+              <span className="field-label">HTTP port</span>
               <input type="number" value={form.proxy_port} onChange={(e) => setForm({ ...form, proxy_port: +e.target.value || 80 })} style={{ width: 120 }} />
-            </Field>
+              <span className="field-help">Use 80 for clean portless URLs</span>
+            </div>
           </div>
         </div>
 
         {/* HTTPS */}
         <div className="card">
           <div className="card-header">
-            <span className="card-title"><Lock size={15} /> HTTPS</span>
+            <span className="card-title"><Lock size={14} /> HTTPS</span>
           </div>
           <div className="card-body" style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-            <label style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer" }}>
+            <label className="toggle-row">
               <input
                 type="checkbox"
                 checked={form.https_enabled}
                 onChange={(e) => setForm({ ...form, https_enabled: e.target.checked })}
-                style={{ width: 18, height: 18, accentColor: "var(--accent)" }}
               />
-              <span style={{ fontSize: 13, fontWeight: 600 }}>Enable HTTPS proxy</span>
+              <div>
+                <div className="toggle-label">Enable HTTPS proxy</div>
+                <div className="toggle-desc">Auto-generates certs via mkcert or openssl</div>
+              </div>
             </label>
-            <Field label="HTTPS port" help="Use 443 for default HTTPS. Auto-generates certs via mkcert or openssl.">
+            <div className="field">
+              <span className="field-label">HTTPS port</span>
               <input type="number" value={form.https_port} onChange={(e) => setForm({ ...form, https_port: +e.target.value || 443 })} style={{ width: 120 }} />
-            </Field>
+            </div>
           </div>
         </div>
 
         {/* Discovery */}
         <div className="card">
           <div className="card-header">
-            <span className="card-title">Discovery</span>
+            <span className="card-title"><Container size={14} /> Discovery</span>
           </div>
-          <div className="card-body">
-            <label style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer" }}>
+          <div className="card-body" style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+            <label className="toggle-row">
               <input
                 type="checkbox"
                 checked={form.docker_discovery}
                 onChange={(e) => setForm({ ...form, docker_discovery: e.target.checked })}
-                style={{ width: 18, height: 18, accentColor: "var(--accent)" }}
               />
               <div>
-                <div style={{ fontSize: 13, fontWeight: 600 }}>Docker auto-discovery</div>
-                <div style={{ fontSize: 11, color: "var(--text-dim)" }}>
-                  Automatically find running Docker containers with published ports.
-                </div>
+                <div className="toggle-label">Docker auto-discovery</div>
+                <div className="toggle-desc">Find running containers with published ports</div>
               </div>
             </label>
+            <div className="field">
+              <span className="field-label">Strip prefix from Docker names</span>
+              <input
+                value={form.docker_strip_prefix ?? ""}
+                onChange={(e) => setForm({ ...form, docker_strip_prefix: e.target.value })}
+                placeholder="e.g. global_ or myproject_"
+                style={{ fontFamily: "var(--mono)" }}
+              />
+              <span className="field-help">
+                Auto-creates short URLs: global_pgadmin &rarr; pgadmin.localhost
+              </span>
+            </div>
           </div>
         </div>
 
-        {/* Ports */}
+        {/* Server Ports */}
         <div className="card">
           <div className="card-header">
             <span className="card-title">Server Ports</span>
           </div>
           <div className="card-body" style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-            <Field label="API port">
+            <div className="field">
+              <span className="field-label">API port</span>
               <input type="number" value={form.api_port} onChange={(e) => setForm({ ...form, api_port: +e.target.value || 19800 })} style={{ width: 120 }} />
-            </Field>
-            <Field label="Dashboard port">
+            </div>
+            <div className="field">
+              <span className="field-label">Dashboard port</span>
               <input type="number" value={form.web_port} onChange={(e) => setForm({ ...form, web_port: +e.target.value || 19802 })} style={{ width: 120 }} />
-            </Field>
+            </div>
           </div>
         </div>
 
         {/* Startup */}
         <div className="card">
           <div className="card-header">
-            <span className="card-title"><Power size={15} /> Startup</span>
+            <span className="card-title"><Power size={14} /> Startup</span>
           </div>
-          <div className="card-body" style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-            <label style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer" }}>
+          <div className="card-body">
+            <label className="toggle-row">
               <input
                 type="checkbox"
                 checked={form.auto_start}
                 onChange={handleToggleStartup}
                 disabled={startupLoading}
-                style={{ width: 18, height: 18, accentColor: "var(--accent)" }}
               />
               <div>
-                <div style={{ fontSize: 13, fontWeight: 600 }}>
-                  Start on boot {startupLoading && <Loader2 size={12} style={{ display: "inline", animation: "spin 1s linear infinite" }} />}
+                <div className="toggle-label">
+                  Start on boot
+                  {startupLoading && <Loader2 size={12} style={{ display: "inline-block", marginLeft: 6, animation: "spin 1s linear infinite" }} />}
                 </div>
-                <div style={{ fontSize: 11, color: "var(--text-dim)" }}>
-                  Automatically start portly when your system boots.
-                </div>
+                <div className="toggle-desc">Automatically start portly when your system boots</div>
               </div>
             </label>
           </div>
@@ -242,52 +251,52 @@ export default function Settings() {
         {/* Updates */}
         <div className="card">
           <div className="card-header">
-            <span className="card-title"><Download size={15} /> Updates</span>
+            <span className="card-title"><Download size={14} /> Updates</span>
           </div>
-          <div className="card-body" style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-            <label style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer" }}>
+          <div className="card-body" style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+            <label className="toggle-row">
               <input
                 type="checkbox"
                 checked={form.auto_update}
                 onChange={(e) => setForm({ ...form, auto_update: e.target.checked })}
-                style={{ width: 18, height: 18, accentColor: "var(--accent)" }}
               />
               <div>
-                <div style={{ fontSize: 13, fontWeight: 600 }}>Auto-update</div>
-                <div style={{ fontSize: 11, color: "var(--text-dim)" }}>
-                  Automatically download and install updates (checks hourly).
-                </div>
+                <div className="toggle-label">Auto-update</div>
+                <div className="toggle-desc">Check and install updates hourly</div>
               </div>
             </label>
-
-            <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+            <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
               <button className="btn btn-ghost btn-sm" onClick={handleCheckUpdate} disabled={checking}>
-                <RefreshCw size={13} /> {checking ? "Checking..." : "Check now"}
+                <RefreshCw size={12} /> {checking ? "Checking..." : "Check now"}
               </button>
               {updateInfo?.available && (
                 <button className="btn btn-primary btn-sm" onClick={handleApplyUpdate} disabled={updating}>
-                  <Download size={13} /> {updating ? "Updating..." : `Update to v${updateInfo.latest}`}
+                  <Download size={12} /> {updating ? "Updating..." : `Update to v${updateInfo.latest}`}
                 </button>
               )}
+              {updateMsg && (
+                <span style={{ fontSize: 12, color: updateMsg.includes("fail") || updateMsg.includes("Error") ? "var(--red)" : "var(--green)" }}>
+                  {updateMsg}
+                </span>
+              )}
             </div>
-            {updateMsg && (
-              <span style={{ fontSize: 12, color: updateMsg.includes("fail") || updateMsg.includes("Error") ? "var(--red)" : "var(--green)" }}>
-                {updateMsg}
-              </span>
-            )}
           </div>
         </div>
       </div>
 
-      <div style={{ marginTop: 16, display: "flex", gap: 8, alignItems: "center" }}>
+      {/* Save bar */}
+      <div style={{ marginTop: 24, display: "flex", gap: 8, alignItems: "center", paddingTop: 16, borderTop: "1px solid var(--border)" }}>
         {msg && (
           <span style={{ fontSize: 13, color: msg.startsWith("Error") ? "var(--red)" : "var(--green)", marginRight: "auto" }}>
             {msg}
           </span>
         )}
         <div style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
-          <button className="btn btn-ghost" onClick={reset}><RotateCcw size={14} /> Defaults</button>
-          <button className="btn btn-primary" onClick={save} disabled={saving}><Save size={14} /> Save</button>
+          <button className="btn btn-ghost" onClick={reset}><RotateCcw size={13} /> Defaults</button>
+          <button className="btn btn-primary" onClick={save} disabled={saving}>
+            {saving ? <Loader2 size={13} style={{ animation: "spin 1s linear infinite" }} /> : <Save size={13} />}
+            Save
+          </button>
         </div>
       </div>
     </div>

@@ -38,6 +38,8 @@ DEFAULT_CONFIG = {
     "https_enabled": True,
     "docker_discovery": True,
     "aliases": {},
+    "docker_strip_prefix": "",     # strip prefix from Docker names, e.g. "global_"
+    "short_aliases": {},           # {"pgadmin": "global_pgadmin"} — shortcut -> real name
     "scan_ports": [],
     "scan_ranges": [],         # [[3000, 3010], [8080, 8090]]
     "scan_common": True,       # scan well-known dev ports

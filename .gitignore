@@ -34,3 +34,4 @@ config.json
 
 # Runtime
 portly.pid
+certs/

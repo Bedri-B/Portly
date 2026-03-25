@@ -23,12 +23,14 @@ export interface AppConfig {
   scan_common: boolean;
   auto_start: boolean;
   auto_update: boolean;
+  docker_strip_prefix: string;
 }
 
 export interface StatusResponse {
   services: ServiceInfo[];
   config: AppConfig;
   aliases: Record<string, number>;
+  short_aliases: Record<string, string>;
   scan_ports: number[];
   scan_ranges: [number, number][];
   version: string;
@@ -58,6 +60,20 @@ export const addAlias = async (name: string, port: number) => {
 
 export const removeAlias = async (name: string) => {
   const res = await fetch(`${API}/api/aliases/${name}`, { method: "DELETE" });
+  return res.json();
+};
+
+export const addShortAlias = async (short: string, target: string) => {
+  const res = await fetch(`${API}/api/short-aliases`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ short, target }),
+  });
+  return res.json();
+};
+
+export const removeShortAlias = async (name: string) => {
+  const res = await fetch(`${API}/api/short-aliases/${name}`, { method: "DELETE" });
   return res.json();
 };
 

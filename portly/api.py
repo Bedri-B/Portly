@@ -42,8 +42,9 @@ class APIHandler(BaseHTTPRequestHandler):
         if path == "/api/status":
             self._json({
                 "services": registry.all_services(),
-                "config": {k: v for k, v in config.items() if k != "aliases"},
+                "config": {k: v for k, v in config.items() if k not in ("aliases", "short_aliases")},
                 "aliases": config.get("aliases", {}),
+                "short_aliases": config.get("short_aliases", {}),
                 "scan_ports": config.get("scan_ports", []),
                 "scan_ranges": config.get("scan_ranges", []),
                 "version": VERSION,
@@ -74,6 +75,18 @@ class APIHandler(BaseHTTPRequestHandler):
                 self._json({"message": f"Alias '{name}' -> localhost:{port}", "aliases": aliases})
             except (KeyError, ValueError) as e:
                 self._err(f"Need 'name' (str) and 'port' (int): {e}")
+        elif path == "/api/short-aliases":
+            try:
+                data = json.loads(self._body())
+                short, target = data["short"], data["target"]
+                sa = config.get("short_aliases", {})
+                sa[short] = target
+                config["short_aliases"] = sa
+                save_config(config)
+                registry.refresh()
+                self._json({"message": f"Short alias '{short}' -> {target}", "short_aliases": sa})
+            except (KeyError, ValueError) as e:
+                self._err(f"Need 'short' (str) and 'target' (str): {e}")
         elif path == "/api/refresh":
             registry.refresh()
             self._json({"message": "Refreshed", "services": registry.all_services()})
@@ -127,7 +140,8 @@ class APIHandler(BaseHTTPRequestHandler):
                 allowed = {"proxy_port", "https_port", "domain", "api_port", "web_port",
                            "https_enabled", "docker_discovery", "aliases",
                            "scan_ports", "scan_ranges", "scan_common",
-                           "auto_start", "auto_update"}
+                           "auto_start", "auto_update",
+                           "docker_strip_prefix", "short_aliases"}
                 for k, v in new.items():
                     if k in allowed:
                         config[k] = v
@@ -151,6 +165,17 @@ class APIHandler(BaseHTTPRequestHandler):
                 save_config(config)
                 registry.refresh()
                 self._json({"message": f"Removed '{name}'", "aliases": aliases})
+            else:
+                self._err(f"'{name}' not found", 404)
+        elif path.startswith("/api/short-aliases/"):
+            name = path.split("/")[-1]
+            sa = config.get("short_aliases", {})
+            if name in sa:
+                del sa[name]
+                config["short_aliases"] = sa
+                save_config(config)
+                registry.refresh()
+                self._json({"message": f"Removed '{name}'", "short_aliases": sa})
             else:
                 self._err(f"'{name}' not found", 404)
         else:
