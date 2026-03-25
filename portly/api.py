@@ -61,6 +61,8 @@ class APIHandler(BaseHTTPRequestHandler):
             self._json({"aliases": config.get("aliases", {})})
         elif path == "/api/config":
             self._json({"config": config})
+        elif path == "/api/config/export":
+            self._json(config)
         elif path == "/api/update/check":
             self._json(check_update())
         elif path == "/api/https/status":
@@ -83,6 +85,16 @@ class APIHandler(BaseHTTPRequestHandler):
                 self._json({"message": f"Alias '{name}' -> localhost:{port}", "aliases": aliases})
             except (KeyError, ValueError) as e:
                 self._err(f"Need 'name' (str) and 'port' (int): {e}")
+        elif path == "/api/config/import":
+            try:
+                new = json.loads(self._body())
+                config.clear()
+                config.update(new)
+                save_config(config)
+                registry.refresh()
+                self._json({"message": "Config imported. Restart for full effect.", "config": config})
+            except Exception as e:
+                self._err(f"Invalid config: {e}")
         elif path == "/api/short-aliases":
             try:
                 data = json.loads(self._body())

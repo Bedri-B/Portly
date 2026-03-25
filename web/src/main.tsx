@@ -16,6 +16,9 @@ const queryClient = new QueryClient({
   },
 });
 
+// Force dark mode
+document.documentElement.classList.add("dark");
+
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <QueryClientProvider client={queryClient}>

@@ -1,463 +1,299 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
-  fetchStatus,
-  updateConfig,
-  checkUpdate,
-  applyUpdate,
-  setupHttps,
-  regenerateCerts,
-  removeCerts,
-  fetchCertInfo,
-  restartServer,
-  installStartup,
-  uninstallStartup,
-  type CertInfo,
-  type StatusResponse,
-  type AppConfig,
-  type UpdateInfo,
-} from "../lib/api";
-import { Save, Loader2, Info, RotateCcw, Lock, Globe, Download, RefreshCw, Power, Container, Trash2, RotateCw } from "lucide-react";
+  fetchStatus, updateConfig, checkUpdate, applyUpdate, setupHttps, regenerateCerts,
+  removeCerts, fetchCertInfo, restartServer, installStartup, uninstallStartup,
+  exportConfig, importConfig, type StatusResponse, type AppConfig, type UpdateInfo, type CertInfo,
+} from "@/lib/api";
+import { Save, Loader2, RotateCcw, Lock, Globe, Download, RefreshCw, Power, Container, Trash2, RotateCw, Upload, FileDown, Info } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Switch } from "@/components/ui/switch";
+import { Separator } from "@/components/ui/separator";
 
 export default function Settings() {
   const qc = useQueryClient();
-  const { data } = useQuery<StatusResponse>({
-    queryKey: ["status"],
-    queryFn: fetchStatus,
-  });
+  const { data } = useQuery<StatusResponse>({ queryKey: ["status"], queryFn: fetchStatus });
+  const fileRef = useRef<HTMLInputElement>(null);
 
   const [form, setForm] = useState<AppConfig>({
-    proxy_port: 80,
-    https_port: 443,
-    domain: ".localhost",
-    api_port: 19800,
-    web_port: 19802,
-    https_enabled: true,
-    docker_discovery: true,
-    scan_common: true,
-    auto_start: true,
-    auto_update: false,
-    docker_strip_prefix: "",
+    proxy_port: 80, https_port: 443, domain: ".localhost", api_port: 19800, web_port: 19802,
+    https_enabled: false, docker_discovery: true, scan_common: true, auto_start: true, auto_update: false, docker_strip_prefix: "",
   });
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState("");
-
   const [updateInfo, setUpdateInfo] = useState<UpdateInfo | null>(null);
   const [checking, setChecking] = useState(false);
   const [updating, setUpdating] = useState(false);
   const [updateMsg, setUpdateMsg] = useState("");
   const [startupLoading, setStartupLoading] = useState(false);
-  const [httpsSetupLoading, setHttpsSetupLoading] = useState(false);
+  const [httpsLoading, setHttpsLoading] = useState(false);
   const [httpsMsg, setHttpsMsg] = useState("");
   const [certInfo, setCertInfo] = useState<CertInfo | null>(null);
-  const [certLoading, setCertLoading] = useState(false);
   const [restarting, setRestarting] = useState(false);
 
-  useEffect(() => {
-    if (data?.config) setForm(data.config);
-  }, [data]);
-
-  useEffect(() => {
-    fetchCertInfo().then(setCertInfo).catch(() => {});
-  }, []);
+  useEffect(() => { if (data?.config) setForm(data.config); }, [data]);
+  useEffect(() => { fetchCertInfo().then(setCertInfo).catch(() => {}); }, []);
 
   const save = async () => {
-    setSaving(true);
-    setMsg("");
-    try {
-      const res = await updateConfig(form);
-      setMsg(res.message || "Saved!");
-      qc.invalidateQueries({ queryKey: ["status"] });
-    } catch (e: any) {
-      setMsg(`Error: ${e.message}`);
-    }
+    setSaving(true); setMsg("");
+    try { const res = await updateConfig(form); setMsg(res.message || "Saved!"); qc.invalidateQueries({ queryKey: ["status"] }); }
+    catch (e: any) { setMsg(`Error: ${e.message}`); }
     setSaving(false);
   };
 
-  const reset = () =>
-    setForm({
-      proxy_port: 80, https_port: 443, domain: ".localhost",
-      api_port: 19800, web_port: 19802, https_enabled: true,
-      docker_discovery: true, scan_common: true, auto_start: true, auto_update: false, docker_strip_prefix: "",
-    });
-
-  const handleCheckUpdate = async () => {
-    setChecking(true);
-    setUpdateMsg("");
-    try {
-      const info = await checkUpdate();
-      setUpdateInfo(info);
-      if (!info.available) setUpdateMsg(`Up to date (v${info.current}).`);
-    } catch {
-      setUpdateMsg("Failed to check for updates.");
-    }
-    setChecking(false);
+  const handleExport = async () => {
+    const cfg = await exportConfig();
+    const blob = new Blob([JSON.stringify(cfg, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a"); a.href = url; a.download = "portly-config.json"; a.click();
+    URL.revokeObjectURL(url);
   };
 
-  const handleApplyUpdate = async () => {
-    setUpdating(true);
-    setUpdateMsg("");
-    try {
-      const res = await applyUpdate();
-      setUpdateMsg(res.message);
-    } catch {
-      setUpdateMsg("Update failed.");
-    }
-    setUpdating(false);
+  const handleImport = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = async () => {
+      try {
+        const cfg = JSON.parse(reader.result as string);
+        const res = await importConfig(cfg);
+        setMsg(res.message || "Imported!");
+        qc.invalidateQueries({ queryKey: ["status"] });
+      } catch { setMsg("Error: Invalid config file."); }
+    };
+    reader.readAsText(file);
+    e.target.value = "";
   };
 
-  const handleToggleStartup = async () => {
-    setStartupLoading(true);
-    try {
-      if (form.auto_start) {
-        await uninstallStartup();
-        setForm({ ...form, auto_start: false });
-      } else {
-        await installStartup();
-        setForm({ ...form, auto_start: true });
-      }
-      qc.invalidateQueries({ queryKey: ["status"] });
-    } catch { /* ignore */ }
-    setStartupLoading(false);
-  };
+  if (!data) return <div className="flex items-center justify-center h-full text-muted-foreground gap-2"><Loader2 size={18} className="animate-spin" /> Loading...</div>;
 
-  if (!data) {
-    return (
-      <div className="page">
-        <div className="loading"><Loader2 size={18} /> Loading settings...</div>
-      </div>
-    );
-  }
+  const Field = ({ label, children, help }: { label: string; children: React.ReactNode; help?: string }) => (
+    <div className="space-y-1.5">
+      <Label className="text-xs uppercase tracking-wide">{label}</Label>
+      {children}
+      {help && <p className="text-[11px] text-muted-foreground">{help}</p>}
+    </div>
+  );
 
   return (
-    <div className="page">
-      <div className="page-header">
+    <div className="p-8">
+      <div className="flex items-start justify-between mb-6">
         <div>
-          <h2>Settings</h2>
-          <p style={{ fontSize: 13, color: "var(--text-dim)", marginTop: 4 }}>
-            Configure proxy, discovery, and system options
-          </p>
+          <h2 className="text-2xl font-bold tracking-tight">Settings</h2>
+          <p className="text-sm text-muted-foreground mt-1">Configure proxy, discovery, and system options</p>
         </div>
-        <span className="badge badge-gray">v{data.version}</span>
+        <Badge variant="outline">v{data.version}</Badge>
       </div>
 
-      <div className="info-banner">
-        <Info size={14} style={{ flexShrink: 0, marginTop: 2 }} />
-        <span>Port changes require restarting portly. Domain and toggle changes apply immediately.</span>
-      </div>
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+        {/* Column 1: Proxy + Ports */}
+        <div className="space-y-6">
+          <Card>
+            <CardHeader className="pb-3"><CardTitle className="text-sm flex items-center gap-2"><Globe size={14} /> HTTP Proxy</CardTitle></CardHeader>
+            <CardContent className="space-y-4">
+              <Field label="Domain suffix" help={`Services: http://name${form.domain}`}>
+                <Input value={form.domain} onChange={(e) => setForm({ ...form, domain: e.target.value })} />
+              </Field>
+              <Field label="HTTP port" help="80 for clean portless URLs">
+                <Input type="number" value={form.proxy_port} onChange={(e) => setForm({ ...form, proxy_port: +e.target.value || 80 })} className="w-28" />
+              </Field>
+            </CardContent>
+          </Card>
 
-      <div className="settings-grid">
-        {/* HTTP Proxy */}
-        <div className="card">
-          <div className="card-header">
-            <span className="card-title"><Globe size={14} /> HTTP Proxy</span>
-          </div>
-          <div className="card-body" style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-            <div className="field">
-              <span className="field-label">Domain suffix</span>
-              <input value={form.domain} onChange={(e) => setForm({ ...form, domain: e.target.value })} />
-              <span className="field-help">Services: http://name{form.domain}</span>
-            </div>
-            <div className="field">
-              <span className="field-label">HTTP port</span>
-              <input type="number" value={form.proxy_port} onChange={(e) => setForm({ ...form, proxy_port: +e.target.value || 80 })} style={{ width: 120 }} />
-              <span className="field-help">Use 80 for clean portless URLs</span>
-            </div>
-          </div>
+          <Card>
+            <CardHeader className="pb-3"><CardTitle className="text-sm">Server Ports</CardTitle></CardHeader>
+            <CardContent className="space-y-4">
+              <Field label="API port">
+                <Input type="number" value={form.api_port} onChange={(e) => setForm({ ...form, api_port: +e.target.value || 19800 })} className="w-28" />
+              </Field>
+              <Field label="Dashboard port">
+                <Input type="number" value={form.web_port} onChange={(e) => setForm({ ...form, web_port: +e.target.value || 19802 })} className="w-28" />
+              </Field>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="pb-3"><CardTitle className="text-sm flex items-center gap-2"><Container size={14} /> Discovery</CardTitle></CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div><Label>Docker auto-discovery</Label><p className="text-xs text-muted-foreground">Find running containers</p></div>
+                <Switch checked={form.docker_discovery} onCheckedChange={(v) => setForm({ ...form, docker_discovery: v })} />
+              </div>
+              <Separator />
+              <Field label="Strip prefix from Docker names" help="global_pgadmin → pgadmin.localhost">
+                <Input value={form.docker_strip_prefix ?? ""} onChange={(e) => setForm({ ...form, docker_strip_prefix: e.target.value })} placeholder="e.g. global_" className="font-mono" />
+              </Field>
+            </CardContent>
+          </Card>
         </div>
 
-        {/* HTTPS */}
-        <div className="card" style={{ gridColumn: "1 / -1" }}>
-          <div className="card-header">
-            <span className="card-title"><Lock size={14} /> HTTPS</span>
-            <div style={{ display: "flex", gap: 6 }}>
-              {certInfo?.exists && (
-                <span className={`badge ${certInfo.method === "mkcert" ? "badge-green" : "badge-yellow"}`}>
-                  {certInfo.method === "mkcert" ? "Trusted" : "Self-signed"}
-                </span>
-              )}
-              {form.https_enabled
-                ? <span className="badge badge-green">Enabled</span>
-                : <span className="badge badge-gray">Disabled</span>
-              }
-            </div>
-          </div>
-          <div className="card-body" style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
-              {/* Left: toggle + port */}
-              <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-                <label className="toggle-row">
-                  <input
-                    type="checkbox"
-                    checked={form.https_enabled}
-                    onChange={(e) => setForm({ ...form, https_enabled: e.target.checked })}
-                  />
-                  <div>
-                    <div className="toggle-label">Enable HTTPS proxy</div>
-                    <div className="toggle-desc">Requires trusted certificates (mkcert)</div>
-                  </div>
-                </label>
-                <div className="field">
-                  <span className="field-label">HTTPS port</span>
-                  <input type="number" value={form.https_port} onChange={(e) => setForm({ ...form, https_port: +e.target.value || 443 })} style={{ width: 120 }} />
-                  <span className="field-help">443 for default HTTPS, falls back to 19444 if unavailable</span>
+        {/* Column 2: HTTPS */}
+        <div className="space-y-6">
+          <Card>
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-sm flex items-center gap-2"><Lock size={14} /> HTTPS</CardTitle>
+                <div className="flex gap-1.5">
+                  {certInfo?.exists && <Badge variant={certInfo.method === "mkcert" ? "default" : "outline"} className="text-[10px]">{certInfo.method === "mkcert" ? "Trusted" : "Self-signed"}</Badge>}
+                  <Badge variant={form.https_enabled ? "default" : "secondary"} className="text-[10px]">{form.https_enabled ? "On" : "Off"}</Badge>
                 </div>
               </div>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div><Label>Enable HTTPS proxy</Label><p className="text-xs text-muted-foreground">Requires certificates</p></div>
+                <Switch checked={form.https_enabled} onCheckedChange={(v) => setForm({ ...form, https_enabled: v })} />
+              </div>
 
-              {/* Right: cert info + actions */}
-              <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                {/* Cert status */}
-                {certInfo && (
-                  <div style={{ padding: "12px 14px", background: "var(--bg-surface)", borderRadius: "var(--radius)", fontSize: 12 }}>
-                    {certInfo.exists ? (
-                      <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                        <div>
-                          <span style={{ color: "var(--text-dim)" }}>Method:</span>{" "}
-                          <span style={{ fontWeight: 600, color: certInfo.method === "mkcert" ? "var(--green)" : "var(--yellow)" }}>
-                            {certInfo.method === "mkcert" ? "mkcert (trusted)" : certInfo.method}
-                          </span>
-                        </div>
-                        {certInfo.expires && (
-                          <div>
-                            <span style={{ color: "var(--text-dim)" }}>Expires:</span>{" "}
-                            <span style={{ fontFamily: "var(--mono)" }}>{certInfo.expires}</span>
-                          </div>
-                        )}
-                        {certInfo.domains.length > 0 && (
-                          <div>
-                            <span style={{ color: "var(--text-dim)" }}>Covered:</span>{" "}
-                            <span style={{ fontFamily: "var(--mono)" }}>{certInfo.domains.join(", ")}</span>
-                          </div>
-                        )}
-                        {(certInfo as any).configured_domains?.length > 0 && (
-                          <div>
-                            <span style={{ color: "var(--text-dim)" }}>Configured:</span>{" "}
-                            <span style={{ fontFamily: "var(--mono)" }}>{(certInfo as any).configured_domains.join(", ")}</span>
-                          </div>
-                        )}
-                        <div>
-                          <span style={{ color: "var(--text-dim)" }}>mkcert:</span>{" "}
-                          <span style={{ color: certInfo.mkcert_installed ? "var(--green)" : "var(--text-muted)" }}>
-                            {certInfo.mkcert_installed ? "installed" : "not found"}
-                          </span>
-                        </div>
-                      </div>
-                    ) : (
-                      <div style={{ color: "var(--text-dim)" }}>No certificates installed.</div>
-                    )}
-                  </div>
-                )}
+              <Field label="HTTPS port" help="443 default, falls back to 19444">
+                <Input type="number" value={form.https_port} onChange={(e) => setForm({ ...form, https_port: +e.target.value || 443 })} className="w-28" />
+              </Field>
 
-                {/* Action buttons */}
-                <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                  <button
-                    className="btn btn-blue btn-sm"
-                    disabled={httpsSetupLoading || certLoading}
-                    onClick={async () => {
-                      setHttpsSetupLoading(true);
-                      setHttpsMsg("");
-                      try {
-                        const res = await setupHttps();
-                        setHttpsMsg(res.message);
-                        if (res.success) setForm({ ...form, https_enabled: true });
-                        fetchCertInfo().then(setCertInfo).catch(() => {});
-                      } catch { setHttpsMsg("Setup failed."); }
-                      setHttpsSetupLoading(false);
-                    }}
-                  >
-                    <Lock size={12} />
-                    {httpsSetupLoading ? "Setting up..." : certInfo?.exists ? "Install certificates" : "Setup HTTPS"}
-                  </button>
+              <Separator />
 
-                  {certInfo?.exists && (
+              {/* Cert info */}
+              {certInfo && (
+                <div className="rounded-md border p-3 text-xs space-y-1">
+                  {certInfo.exists ? (
                     <>
-                      <button
-                        className="btn btn-ghost btn-sm"
-                        disabled={certLoading}
-                        onClick={async () => {
-                          setCertLoading(true);
-                          setHttpsMsg("");
-                          try {
-                            const res = await regenerateCerts();
-                            setHttpsMsg(res.message);
-                            fetchCertInfo().then(setCertInfo).catch(() => {});
-                          } catch { setHttpsMsg("Regeneration failed."); }
-                          setCertLoading(false);
-                        }}
-                      >
-                        <RefreshCw size={12} /> Regenerate
-                      </button>
-                      <button
-                        className="btn btn-red btn-sm"
-                        disabled={certLoading}
-                        onClick={async () => {
-                          setCertLoading(true);
-                          setHttpsMsg("");
-                          try {
-                            const res = await removeCerts();
-                            setHttpsMsg(res.message);
-                            setCertInfo({ ...certInfo, exists: false, method: "none", expires: null, domains: [] });
-                          } catch { setHttpsMsg("Remove failed."); }
-                          setCertLoading(false);
-                        }}
-                      >
-                        <Trash2 size={12} /> Remove
-                      </button>
+                      <div><span className="text-muted-foreground">Method:</span> <span className={`font-semibold ${certInfo.method === "mkcert" ? "text-green-500" : "text-yellow-500"}`}>{certInfo.method}</span></div>
+                      {certInfo.expires && <div><span className="text-muted-foreground">Expires:</span> <span className="font-mono">{certInfo.expires}</span></div>}
+                      {certInfo.domains.length > 0 && <div><span className="text-muted-foreground">Covers:</span> <span className="font-mono">{certInfo.domains.join(", ")}</span></div>}
                     </>
+                  ) : (
+                    <p className="text-muted-foreground">No certificates installed.</p>
                   )}
                 </div>
+              )}
 
-                {httpsMsg && (
-                  <span style={{ fontSize: 12, color: httpsMsg.includes("fail") || httpsMsg.includes("Could not") ? "var(--red)" : "var(--green)" }}>
-                    {httpsMsg}
-                  </span>
+              <div className="flex flex-wrap gap-2">
+                <Button size="sm" disabled={httpsLoading} onClick={async () => {
+                  setHttpsLoading(true); setHttpsMsg("");
+                  try { const r = await setupHttps(); setHttpsMsg(r.message); if (r.success) setForm({ ...form, https_enabled: true }); fetchCertInfo().then(setCertInfo).catch(() => {}); }
+                  catch { setHttpsMsg("Failed."); }
+                  setHttpsLoading(false);
+                }}>
+                  <Lock size={12} /> {httpsLoading ? "Setting up..." : "Install Certs"}
+                </Button>
+                {certInfo?.exists && (
+                  <>
+                    <Button variant="outline" size="sm" disabled={httpsLoading} onClick={async () => {
+                      setHttpsLoading(true); setHttpsMsg("");
+                      try { const r = await regenerateCerts(); setHttpsMsg(r.message); fetchCertInfo().then(setCertInfo).catch(() => {}); }
+                      catch { setHttpsMsg("Failed."); }
+                      setHttpsLoading(false);
+                    }}>
+                      <RefreshCw size={12} /> Regenerate
+                    </Button>
+                    <Button variant="destructive" size="sm" disabled={httpsLoading} onClick={async () => {
+                      setHttpsLoading(true); setHttpsMsg("");
+                      try { const r = await removeCerts(); setHttpsMsg(r.message); setCertInfo({ ...certInfo, exists: false, method: "none", expires: null, domains: [] }); }
+                      catch { setHttpsMsg("Failed."); }
+                      setHttpsLoading(false);
+                    }}>
+                      <Trash2 size={12} /> Remove
+                    </Button>
+                  </>
                 )}
               </div>
-            </div>
-          </div>
+              {httpsMsg && <p className={`text-xs ${httpsMsg.includes("fail") || httpsMsg.includes("Could") ? "text-destructive" : "text-green-500"}`}>{httpsMsg}</p>}
+            </CardContent>
+          </Card>
         </div>
 
-        {/* Discovery */}
-        <div className="card">
-          <div className="card-header">
-            <span className="card-title"><Container size={14} /> Discovery</span>
-          </div>
-          <div className="card-body" style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-            <label className="toggle-row">
-              <input
-                type="checkbox"
-                checked={form.docker_discovery}
-                onChange={(e) => setForm({ ...form, docker_discovery: e.target.checked })}
-              />
-              <div>
-                <div className="toggle-label">Docker auto-discovery</div>
-                <div className="toggle-desc">Find running containers with published ports</div>
+        {/* Column 3: Startup + Updates + Config */}
+        <div className="space-y-6">
+          <Card>
+            <CardHeader className="pb-3"><CardTitle className="text-sm flex items-center gap-2"><Power size={14} /> Startup</CardTitle></CardHeader>
+            <CardContent>
+              <div className="flex items-center justify-between">
+                <div><Label>Start on boot</Label><p className="text-xs text-muted-foreground">Auto-start when system boots</p></div>
+                <Switch checked={form.auto_start} disabled={startupLoading} onCheckedChange={async (v) => {
+                  setStartupLoading(true);
+                  try { if (v) await installStartup(); else await uninstallStartup(); setForm({ ...form, auto_start: v }); qc.invalidateQueries({ queryKey: ["status"] }); }
+                  catch {}
+                  setStartupLoading(false);
+                }} />
               </div>
-            </label>
-            <div className="field">
-              <span className="field-label">Strip prefix from Docker names</span>
-              <input
-                value={form.docker_strip_prefix ?? ""}
-                onChange={(e) => setForm({ ...form, docker_strip_prefix: e.target.value })}
-                placeholder="e.g. global_ or myproject_"
-                style={{ fontFamily: "var(--mono)" }}
-              />
-              <span className="field-help">
-                Auto-creates short URLs: global_pgadmin &rarr; pgadmin.localhost
-              </span>
-            </div>
-          </div>
-        </div>
+            </CardContent>
+          </Card>
 
-        {/* Server Ports */}
-        <div className="card">
-          <div className="card-header">
-            <span className="card-title">Server Ports</span>
-          </div>
-          <div className="card-body" style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-            <div className="field">
-              <span className="field-label">API port</span>
-              <input type="number" value={form.api_port} onChange={(e) => setForm({ ...form, api_port: +e.target.value || 19800 })} style={{ width: 120 }} />
-            </div>
-            <div className="field">
-              <span className="field-label">Dashboard port</span>
-              <input type="number" value={form.web_port} onChange={(e) => setForm({ ...form, web_port: +e.target.value || 19802 })} style={{ width: 120 }} />
-            </div>
-          </div>
-        </div>
-
-        {/* Startup */}
-        <div className="card">
-          <div className="card-header">
-            <span className="card-title"><Power size={14} /> Startup</span>
-          </div>
-          <div className="card-body">
-            <label className="toggle-row">
-              <input
-                type="checkbox"
-                checked={form.auto_start}
-                onChange={handleToggleStartup}
-                disabled={startupLoading}
-              />
-              <div>
-                <div className="toggle-label">
-                  Start on boot
-                  {startupLoading && <Loader2 size={12} style={{ display: "inline-block", marginLeft: 6, animation: "spin 1s linear infinite" }} />}
-                </div>
-                <div className="toggle-desc">Automatically start portly when your system boots</div>
+          <Card>
+            <CardHeader className="pb-3"><CardTitle className="text-sm flex items-center gap-2"><Download size={14} /> Updates</CardTitle></CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div><Label>Auto-update</Label><p className="text-xs text-muted-foreground">Check hourly</p></div>
+                <Switch checked={form.auto_update} onCheckedChange={(v) => setForm({ ...form, auto_update: v })} />
               </div>
-            </label>
-          </div>
-        </div>
-
-        {/* Updates */}
-        <div className="card">
-          <div className="card-header">
-            <span className="card-title"><Download size={14} /> Updates</span>
-          </div>
-          <div className="card-body" style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-            <label className="toggle-row">
-              <input
-                type="checkbox"
-                checked={form.auto_update}
-                onChange={(e) => setForm({ ...form, auto_update: e.target.checked })}
-              />
-              <div>
-                <div className="toggle-label">Auto-update</div>
-                <div className="toggle-desc">Check and install updates hourly</div>
+              <div className="flex gap-2 flex-wrap">
+                <Button variant="outline" size="sm" disabled={checking} onClick={async () => {
+                  setChecking(true); setUpdateMsg("");
+                  try { const i = await checkUpdate(); setUpdateInfo(i); if (!i.available) setUpdateMsg(`Up to date (v${i.current}).`); }
+                  catch { setUpdateMsg("Check failed."); }
+                  setChecking(false);
+                }}>
+                  <RefreshCw size={12} /> {checking ? "Checking..." : "Check now"}
+                </Button>
+                {updateInfo?.available && (
+                  <Button size="sm" disabled={updating} onClick={async () => {
+                    setUpdating(true); setUpdateMsg("");
+                    try { const r = await applyUpdate(); setUpdateMsg(r.message); } catch { setUpdateMsg("Failed."); }
+                    setUpdating(false);
+                  }}>
+                    <Download size={12} /> Update to v{updateInfo.latest}
+                  </Button>
+                )}
               </div>
-            </label>
-            <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-              <button className="btn btn-ghost btn-sm" onClick={handleCheckUpdate} disabled={checking}>
-                <RefreshCw size={12} /> {checking ? "Checking..." : "Check now"}
-              </button>
-              {updateInfo?.available && (
-                <button className="btn btn-primary btn-sm" onClick={handleApplyUpdate} disabled={updating}>
-                  <Download size={12} /> {updating ? "Updating..." : `Update to v${updateInfo.latest}`}
-                </button>
-              )}
-              {updateMsg && (
-                <span style={{ fontSize: 12, color: updateMsg.includes("fail") || updateMsg.includes("Error") ? "var(--red)" : "var(--green)" }}>
-                  {updateMsg}
-                </span>
-              )}
-            </div>
-          </div>
+              {updateMsg && <p className={`text-xs ${updateMsg.includes("fail") ? "text-destructive" : "text-green-500"}`}>{updateMsg}</p>}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="pb-3"><CardTitle className="text-sm flex items-center gap-2"><Info size={14} /> Config</CardTitle></CardHeader>
+            <CardContent className="space-y-3">
+              <p className="text-xs text-muted-foreground">Export your config as JSON or import a saved one.</p>
+              <div className="flex gap-2">
+                <Button variant="outline" size="sm" onClick={handleExport}><FileDown size={12} /> Export</Button>
+                <Button variant="outline" size="sm" onClick={() => fileRef.current?.click()}><Upload size={12} /> Import</Button>
+                <input ref={fileRef} type="file" accept=".json" onChange={handleImport} className="hidden" />
+              </div>
+            </CardContent>
+          </Card>
         </div>
       </div>
 
       {/* Save bar */}
-      <div style={{ marginTop: 24, display: "flex", gap: 8, alignItems: "center", paddingTop: 16, borderTop: "1px solid var(--border)" }}>
-        {msg && (
-          <span style={{ fontSize: 13, color: msg.startsWith("Error") ? "var(--red)" : "var(--green)" }}>
-            {msg}
-          </span>
-        )}
-        <div style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
-          <button
-            className="btn btn-ghost"
-            onClick={async () => {
-              setRestarting(true);
-              try { await restartServer(); } catch {}
-              setTimeout(() => window.location.reload(), 3000);
-            }}
-            disabled={restarting}
-          >
-            <RotateCw size={13} className={restarting ? "spinning" : ""} />
+      <div className="mt-8 pt-4 border-t flex items-center gap-3">
+        {msg && <p className={`text-sm ${msg.startsWith("Error") ? "text-destructive" : "text-green-500"}`}>{msg}</p>}
+        <div className="ml-auto flex gap-2">
+          <Button variant="outline" disabled={restarting} onClick={async () => {
+            setRestarting(true);
+            try { await restartServer(); } catch {}
+            setTimeout(() => window.location.reload(), 3000);
+          }}>
+            <RotateCw size={13} className={restarting ? "animate-spin" : ""} />
             {restarting ? "Restarting..." : "Restart Server"}
-          </button>
-          <button className="btn btn-ghost" onClick={reset}><RotateCcw size={13} /> Defaults</button>
-          <button className="btn btn-primary" onClick={save} disabled={saving}>
-            {saving ? <Loader2 size={13} style={{ animation: "spin 1s linear infinite" }} /> : <Save size={13} />}
-            Save
-          </button>
+          </Button>
+          <Button variant="outline" onClick={() => setForm({
+            proxy_port: 80, https_port: 443, domain: ".localhost", api_port: 19800, web_port: 19802,
+            https_enabled: false, docker_discovery: true, scan_common: true, auto_start: true, auto_update: false, docker_strip_prefix: "",
+          })}>
+            <RotateCcw size={13} /> Defaults
+          </Button>
+          <Button onClick={save} disabled={saving}>
+            {saving ? <Loader2 size={13} className="animate-spin" /> : <Save size={13} />} Save
+          </Button>
         </div>
       </div>
 
       {restarting && (
-        <div className="restart-overlay">
-          <RotateCw size={24} className="spinning" />
-          <span>Restarting portly...</span>
+        <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex flex-col items-center justify-center gap-3">
+          <RotateCw size={24} className="animate-spin text-muted-foreground" />
+          <span className="text-muted-foreground">Restarting portly...</span>
         </div>
       )}
     </div>

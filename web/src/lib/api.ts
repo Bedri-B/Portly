@@ -146,6 +146,21 @@ export const removeCerts = async () => {
   return res.json();
 };
 
+export const exportConfig = async () => {
+  const res = await fetch(`${API}/api/config/export`);
+  if (!res.ok) throw new Error("Failed to export config");
+  return res.json();
+};
+
+export const importConfig = async (cfg: Record<string, unknown>) => {
+  const res = await fetch(`${API}/api/config/import`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(cfg),
+  });
+  return res.json();
+};
+
 export const restartServer = async () => {
   const res = await fetch(`${API}/api/server/restart`, { method: "POST" });
   return res.json();
