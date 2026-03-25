@@ -1,0 +1,33 @@
+[project]
+name = "portly"
+version = "1.0.0"
+description = "Portless reverse proxy for local dev — access any service by name"
+readme = "README.md"
+license = { text = "MIT" }
+requires-python = ">=3.10"
+authors = [{ name = "Bedri B." }]
+keywords = ["reverse-proxy", "localhost", "developer-tools", "docker", "proxy"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Topic :: Internet :: Proxy Servers",
+    "Topic :: Software Development :: Testing",
+]
+
+[project.urls]
+Homepage = "https://github.com/Bedri-B/Portly"
+Issues = "https://github.com/Bedri-B/Portly/issues"
+
+[project.scripts]
+portly = "portly.cli:main"
+
+[build-system]
+requires = ["setuptools>=68.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["portly*"]
