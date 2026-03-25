@@ -115,6 +115,11 @@ export const applyUpdate = async () => {
   return res.json();
 };
 
+export const setupHttps = async () => {
+  const res = await fetch(`${API}/api/https/setup`, { method: "POST" });
+  return res.json();
+};
+
 export const installStartup = async () => {
   const res = await fetch(`${API}/api/startup/install`, { method: "POST" });
   return res.json();

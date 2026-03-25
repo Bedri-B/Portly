@@ -35,7 +35,7 @@ DEFAULT_CONFIG = {
     "api_port": 19800,
     "web_port": 19802,
     "domain": ".localhost",
-    "https_enabled": True,
+    "https_enabled": False,
     "docker_discovery": True,
     "aliases": {},
     "docker_strip_prefix": "",     # strip prefix from Docker names, e.g. "global_"

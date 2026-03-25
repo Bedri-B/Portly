@@ -134,7 +134,7 @@ A `config.json` is created next to the binary on first run:
   "proxy_port": 80,
   "https_port": 443,
   "domain": ".localhost",
-  "https_enabled": true,
+  "https_enabled": false,
   "docker_discovery": true,
   "auto_start": true,
   "auto_update": false,
@@ -163,13 +163,53 @@ Everything is also configurable from the dashboard.
 
 ## HTTPS
 
-Enabled by default. Certs are auto-generated using the first available method:
+Disabled by default. Enable it from the dashboard or config for trusted `https://name.localhost` URLs with no browser warnings.
 
-1. [**mkcert**](https://github.com/FiloSottile/mkcert) — locally-trusted, no browser warnings
-2. **openssl** — self-signed fallback
-3. **Python cryptography** — last resort
+### Quick setup (recommended)
 
-Certs are stored in `certs/` next to the binary. If port 443 requires elevated privileges, the proxy falls back to `19444`.
+1. Open the dashboard: `http://localhost:19802/settings`
+2. Click **"Install certificates"** in the HTTPS card
+3. Toggle **"Enable HTTPS proxy"** on
+4. Click **Save**, then restart portly (`portly restart`)
+
+This automatically installs [mkcert](https://github.com/FiloSottile/mkcert), adds a root CA to your system trust store, and generates certificates for `*.localhost`. Browsers will trust all `https://name.localhost` URLs immediately.
+
+### Manual setup
+
+If you prefer to set it up yourself:
+
+```bash
+# Install mkcert
+# Windows: winget install FiloSottile.mkcert
+# macOS:   brew install mkcert
+# Linux:   apt install mkcert  (or download from GitHub)
+
+# Install root CA (one-time, requires admin on Windows)
+mkcert -install
+
+# Generate certs
+mkdir -p certs
+mkcert -cert-file certs/localhost.pem -key-file certs/localhost-key.pem \
+  localhost "*.localhost" 127.0.0.1 ::1
+
+# Enable in config
+# Set "https_enabled": true in config.json, then restart portly
+```
+
+### Config options
+
+| Key | Default | Description |
+|-----|---------|-------------|
+| `https_enabled` | `false` | Enable HTTPS proxy on `https_port` |
+| `https_port` | `443` | HTTPS listen port (falls back to `19444` if 443 needs admin) |
+
+### Certificate fallbacks
+
+If mkcert is not available, portly falls back to:
+1. **openssl** — generates a self-signed cert (browser will show warnings)
+2. **Python cryptography** — last resort
+
+Certs are stored in `certs/` next to the binary.
 
 ## API
 

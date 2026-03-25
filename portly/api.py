@@ -9,6 +9,7 @@ from portly.registry import registry
 from portly.discovery import collect_scan_ports
 from portly.updater import check_update, perform_update
 from portly.service import service_install, service_uninstall
+from portly.tls import setup_https
 
 
 class APIHandler(BaseHTTPRequestHandler):
@@ -112,6 +113,8 @@ class APIHandler(BaseHTTPRequestHandler):
                 self._err(str(e))
         elif path == "/api/update/apply":
             self._json(perform_update())
+        elif path == "/api/https/setup":
+            self._json(setup_https())
         elif path == "/api/startup/install":
             try:
                 service_install()

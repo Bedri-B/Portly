@@ -5,6 +5,7 @@ import {
   updateConfig,
   checkUpdate,
   applyUpdate,
+  setupHttps,
   installStartup,
   uninstallStartup,
   type StatusResponse,
@@ -41,6 +42,8 @@ export default function Settings() {
   const [updating, setUpdating] = useState(false);
   const [updateMsg, setUpdateMsg] = useState("");
   const [startupLoading, setStartupLoading] = useState(false);
+  const [httpsSetupLoading, setHttpsSetupLoading] = useState(false);
+  const [httpsMsg, setHttpsMsg] = useState("");
 
   useEffect(() => {
     if (data?.config) setForm(data.config);
@@ -155,6 +158,7 @@ export default function Settings() {
         <div className="card">
           <div className="card-header">
             <span className="card-title"><Lock size={14} /> HTTPS</span>
+            {form.https_enabled && <span className="badge badge-green">Enabled</span>}
           </div>
           <div className="card-body" style={{ display: "flex", flexDirection: "column", gap: 16 }}>
             <label className="toggle-row">
@@ -165,12 +169,44 @@ export default function Settings() {
               />
               <div>
                 <div className="toggle-label">Enable HTTPS proxy</div>
-                <div className="toggle-desc">Auto-generates certs via mkcert or openssl</div>
+                <div className="toggle-desc">Requires trusted certificates (mkcert)</div>
               </div>
             </label>
             <div className="field">
               <span className="field-label">HTTPS port</span>
               <input type="number" value={form.https_port} onChange={(e) => setForm({ ...form, https_port: +e.target.value || 443 })} style={{ width: 120 }} />
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              <button
+                className="btn btn-blue btn-sm"
+                disabled={httpsSetupLoading}
+                onClick={async () => {
+                  setHttpsSetupLoading(true);
+                  setHttpsMsg("");
+                  try {
+                    const res = await setupHttps();
+                    setHttpsMsg(res.message);
+                    if (res.success) {
+                      setForm({ ...form, https_enabled: true });
+                    }
+                  } catch {
+                    setHttpsMsg("Setup failed.");
+                  }
+                  setHttpsSetupLoading(false);
+                }}
+              >
+                <Lock size={12} />
+                {httpsSetupLoading ? "Setting up..." : "Install certificates"}
+              </button>
+              <span className="field-help">
+                Installs mkcert (if needed) and generates trusted certificates.
+                Browsers will trust *.localhost with no warnings.
+              </span>
+              {httpsMsg && (
+                <span style={{ fontSize: 12, color: httpsMsg.includes("fail") || httpsMsg.includes("Could not") ? "var(--red)" : "var(--green)" }}>
+                  {httpsMsg}
+                </span>
+              )}
             </div>
           </div>
         </div>
