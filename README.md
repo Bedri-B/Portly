@@ -172,7 +172,7 @@ Disabled by default. Enable it from the dashboard or config for trusted `https:/
 3. Toggle **"Enable HTTPS proxy"** on
 4. Click **Save**, then restart portly (`portly restart`)
 
-This automatically installs [mkcert](https://github.com/FiloSottile/mkcert), adds a root CA to your system trust store, and generates certificates for `*.localhost`. Browsers will trust all `https://name.localhost` URLs immediately.
+This automatically installs [mkcert](https://github.com/FiloSottile/mkcert), adds a root CA to your system trust store, and generates certificates for your configured domain. With the default `.localhost` domain, browsers will trust all `https://name.localhost` URLs immediately. If you change the domain (e.g. `.test`), regenerate certs and they'll cover `*.test` too.
 
 ### Manual setup
 

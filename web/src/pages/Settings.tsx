@@ -223,8 +223,14 @@ export default function Settings() {
                         )}
                         {certInfo.domains.length > 0 && (
                           <div>
-                            <span style={{ color: "var(--text-dim)" }}>Domains:</span>{" "}
+                            <span style={{ color: "var(--text-dim)" }}>Covered:</span>{" "}
                             <span style={{ fontFamily: "var(--mono)" }}>{certInfo.domains.join(", ")}</span>
+                          </div>
+                        )}
+                        {(certInfo as any).configured_domains?.length > 0 && (
+                          <div>
+                            <span style={{ color: "var(--text-dim)" }}>Configured:</span>{" "}
+                            <span style={{ fontFamily: "var(--mono)" }}>{(certInfo as any).configured_domains.join(", ")}</span>
                           </div>
                         )}
                         <div>
