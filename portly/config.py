@@ -35,6 +35,7 @@ DEFAULT_CONFIG = {
     "api_port": 19800,
     "web_port": 19802,
     "domain": ".localhost",
+    "extra_domains": [],           # additional domain suffixes, e.g. [".test", ".local"]
     "https_enabled": False,
     "docker_discovery": True,
     "aliases": {},

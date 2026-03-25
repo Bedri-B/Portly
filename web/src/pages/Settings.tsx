@@ -21,7 +21,7 @@ export default function Settings() {
 
   const [form, setForm] = useState<AppConfig>({
     proxy_port: 80, https_port: 443, domain: ".localhost", api_port: 19800, web_port: 19802,
-    https_enabled: false, docker_discovery: true, scan_common: true, auto_start: true, auto_update: false, docker_strip_prefix: "",
+    https_enabled: false, docker_discovery: true, scan_common: true, auto_start: true, auto_update: false, docker_strip_prefix: "", extra_domains: [],
   });
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState("");
@@ -95,8 +95,18 @@ export default function Settings() {
           <Card>
             <CardHeader className="pb-3"><CardTitle className="text-sm flex items-center gap-2"><Globe size={14} /> HTTP Proxy</CardTitle></CardHeader>
             <CardContent className="space-y-4">
-              <Field label="Domain suffix" help={`Services: http://name${form.domain}`}>
+              <Field label="Primary domain" help={`Services: http://name${form.domain}`}>
                 <Input value={form.domain} onChange={(e) => setForm({ ...form, domain: e.target.value })} />
+              </Field>
+              <Field label="Extra domains" help="Additional suffixes (up to 3). Separate with commas. e.g. .test, .local">
+                <Input
+                  value={(form.extra_domains || []).join(", ")}
+                  onChange={(e) => {
+                    const vals = e.target.value.split(",").map(s => s.trim()).filter(Boolean).slice(0, 3);
+                    setForm({ ...form, extra_domains: vals });
+                  }}
+                  placeholder=".test, .local"
+                />
               </Field>
               <Field label="HTTP port" help="80 for clean portless URLs">
                 <Input type="number" value={form.proxy_port} onChange={(e) => setForm({ ...form, proxy_port: +e.target.value || 80 })} className="w-28" />
@@ -292,7 +302,7 @@ export default function Settings() {
           </Button>
           <Button variant="outline" onClick={() => setForm({
             proxy_port: 80, https_port: 443, domain: ".localhost", api_port: 19800, web_port: 19802,
-            https_enabled: false, docker_discovery: true, scan_common: true, auto_start: true, auto_update: false, docker_strip_prefix: "",
+            https_enabled: false, docker_discovery: true, scan_common: true, auto_start: true, auto_update: false, docker_strip_prefix: "", extra_domains: [],
           })}>
             <RotateCcw size={13} /> Defaults
           </Button>

@@ -110,12 +110,17 @@ class ProxyHandler(BaseHTTPRequestHandler):
     def _resolve(self) -> tuple[str, int | None, str]:
         """Returns (kind, port, subdomain). kind is 'dashboard', 'service', 'stopped', or 'none'."""
         host = self.headers.get("Host", "").split(":")[0]
-        domain = config["domain"]
         if host in ("localhost", "127.0.0.1", ""):
             return "none", None, ""
-        if not host.endswith(domain):
+        # Match against primary domain and extra domains
+        domains = [config["domain"]] + config.get("extra_domains", [])
+        name = ""
+        for d in domains:
+            if host.endswith(d):
+                name = host[: -len(d)]
+                break
+        if not name:
             return "none", None, host
-        name = host[: -len(domain)]
         if name == DASHBOARD_NAME:
             return "dashboard", config["web_port"], name
         port = registry.lookup(name)

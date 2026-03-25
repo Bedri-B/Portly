@@ -24,6 +24,7 @@ export interface AppConfig {
   auto_start: boolean;
   auto_update: boolean;
   docker_strip_prefix: string;
+  extra_domains: string[];
 }
 
 export interface StatusResponse {

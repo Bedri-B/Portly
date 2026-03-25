@@ -195,7 +195,8 @@ class APIHandler(BaseHTTPRequestHandler):
         if path == "/api/config":
             try:
                 new = json.loads(self._body())
-                allowed = {"proxy_port", "https_port", "domain", "api_port", "web_port",
+                allowed = {"proxy_port", "https_port", "domain", "extra_domains",
+                           "api_port", "web_port",
                            "https_enabled", "docker_discovery", "aliases",
                            "scan_ports", "scan_ranges", "scan_common",
                            "auto_start", "auto_update",

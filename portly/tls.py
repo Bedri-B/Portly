@@ -19,17 +19,35 @@ def _cert_paths() -> tuple[Path, Path]:
 
 def _cert_domains() -> list[str]:
     """Build the list of domains/IPs to include in the certificate,
-    based on the configured domain suffix."""
-    domain = config.get("domain", ".localhost").lstrip(".")
-    # e.g. domain = "localhost" → ["localhost", "*.localhost", "127.0.0.1", "::1"]
-    # e.g. domain = "test"      → ["test", "*.test", "localhost", "127.0.0.1", "::1"]
-    names = [domain, f"*.{domain}"]
-    if domain != "localhost":
+    based on the primary domain and any extra domains."""
+    all_domains = [config.get("domain", ".localhost")]
+    all_domains += config.get("extra_domains", [])
+
+    names: list[str] = []
+    for d in all_domains:
+        d = d.lstrip(".")
+        names += [d, f"*.{d}"]
+
+    # Always include localhost if not already covered
+    if "localhost" not in [d.lstrip(".") for d in all_domains]:
         names += ["localhost", "*.localhost"]
+
     names += ["127.0.0.1", "::1"]
-    # dedupe while preserving order
-    seen = set()
-    result = []
+
+    # Also add explicit names for all known services (fixes Chrome wildcard issues)
+    from portly.registry import registry
+    domain = config.get("domain", ".localhost")
+    try:
+        with registry._lock:
+            for svc_name in registry.routes:
+                explicit = f"{svc_name}{domain}"
+                names.append(explicit)
+    except Exception:
+        pass
+
+    # Dedupe preserving order
+    seen: set[str] = set()
+    result: list[str] = []
     for n in names:
         if n not in seen:
             seen.add(n)
