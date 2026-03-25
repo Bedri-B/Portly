@@ -49,14 +49,17 @@ class RouteRegistry:
         new_routes = {}
 
         # 1. Docker containers
-        strip = config.get("docker_strip_prefix", "")
+        strip_raw = config.get("docker_strip_prefix", "")
+        prefixes = [p.strip() for p in strip_raw.split(",") if p.strip()]
         for name, info in discover_docker_ports().items():
             new_routes[name] = info
-            # Auto-create short name by stripping prefix
-            if strip and name.startswith(strip):
-                short = name[len(strip):]
-                if short and short not in new_routes:
-                    new_routes[short] = {**info, "_alias_of": name}
+            # Auto-create short name by stripping matching prefix
+            for prefix in prefixes:
+                if name.startswith(prefix):
+                    short = name[len(prefix):]
+                    if short and short not in new_routes:
+                        new_routes[short] = {**info, "_alias_of": name}
+                    break
 
         # 1b. Manual short aliases for Docker containers
         for short, target in config.get("short_aliases", {}).items():

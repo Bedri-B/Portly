@@ -35,3 +35,5 @@ config.json
 # Runtime
 portly.pid
 certs/
+config.bat
+node_modules
