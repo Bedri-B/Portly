@@ -1,11 +1,15 @@
-# Portly
+<p align="center">
+  <img src="assets/branding/portly-doc-banner.svg" alt="Portly" width="100%">
+</p>
 
-[![Build & Release](https://github.com/Bedri-B/Portly/actions/workflows/build.yml/badge.svg)](https://github.com/Bedri-B/Portly/actions/workflows/build.yml)
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![GitHub release](https://img.shields.io/github/v/release/Bedri-B/Portly)](https://github.com/Bedri-B/Portly/releases/latest)
-[![GitHub stars](https://img.shields.io/github/stars/Bedri-B/Portly)](https://github.com/Bedri-B/Portly/stargazers)
+<p align="center">
+  <a href="https://github.com/Bedri-B/Portly/actions/workflows/build.yml"><img src="https://github.com/Bedri-B/Portly/actions/workflows/build.yml/badge.svg" alt="Build & Release"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-blue.svg" alt="License: MIT"></a>
+  <a href="https://github.com/Bedri-B/Portly/releases/latest"><img src="https://img.shields.io/github/v/release/Bedri-B/Portly" alt="GitHub release"></a>
+  <a href="https://github.com/Bedri-B/Portly/stargazers"><img src="https://img.shields.io/github/stars/Bedri-B/Portly" alt="GitHub stars"></a>
+</p>
 
-> Stop memorizing port numbers. Access every local service by name.
+<p align="center"><strong>Stop memorizing port numbers. Access every local service by name.</strong></p>
 
 **Portly** is a local reverse proxy that lets you reach any service — Docker containers, dev servers, APIs — through clean URLs like `http://myapp.localhost` instead of `localhost:3000`.
 
