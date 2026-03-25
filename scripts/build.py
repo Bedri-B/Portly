@@ -12,6 +12,13 @@ WEB_DIST = WEB_DIR / "dist"
 DIST_DIR = ROOT_DIR / "dist"
 SYSTEM = platform.system()
 
+# Modules not needed at runtime — excluding them reduces binary size
+EXCLUDES = [
+    "tkinter", "unittest", "pydoc", "doctest", "test",
+    "lib2to3", "idlelib", "multiprocessing", "xmlrpc",
+    "curses", "ensurepip", "venv",
+]
+
 
 def build_web():
     print("Building React frontend...")
@@ -33,8 +40,12 @@ def build_exe():
         "--distpath", str(DIST_DIR),
         "--workpath", str(ROOT_DIR / "build"),
         "--specpath", str(ROOT_DIR),
-        str(ROOT_DIR / "portly" / "__main__.py"),
     ]
+
+    for mod in EXCLUDES:
+        cmd += ["--exclude-module", mod]
+
+    cmd.append(str(ROOT_DIR / "portly" / "__main__.py"))
 
     print(f"Building exe for {SYSTEM}...")
     subprocess.run(cmd, check=True)

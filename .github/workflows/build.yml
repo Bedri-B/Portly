@@ -54,6 +54,16 @@ jobs:
       - name: Install Python deps
         run: pip install pyinstaller
 
+      - name: Install UPX (compression)
+        if: runner.os == 'Linux'
+        run: sudo apt-get install -y upx-ucl
+      - name: Install UPX (Windows)
+        if: runner.os == 'Windows'
+        run: choco install upx -y
+      - name: Install UPX (macOS)
+        if: runner.os == 'macOS'
+        run: brew install upx
+
       - name: Install web dependencies
         working-directory: web
         run: npm ci
@@ -69,6 +79,18 @@ jobs:
           --name portly
           --add-data "web/dist${{ matrix.sep }}web"
           --distpath dist
+          --exclude-module tkinter
+          --exclude-module unittest
+          --exclude-module pydoc
+          --exclude-module doctest
+          --exclude-module test
+          --exclude-module lib2to3
+          --exclude-module idlelib
+          --exclude-module multiprocessing
+          --exclude-module xmlrpc
+          --exclude-module curses
+          --exclude-module ensurepip
+          --exclude-module venv
           portly/__main__.py
 
       - name: Upload build artifact
@@ -89,6 +111,8 @@ jobs:
         with:
           path: artifacts
 
+      - uses: actions/checkout@v4
+
       - name: Prepare release assets
         run: |
           mkdir -p release
@@ -97,10 +121,24 @@ jobs:
           cp artifacts/portly-macos-arm64/portly release/portly-macos-arm64
           chmod +x release/portly-linux-amd64 release/portly-macos-arm64
 
+      - name: Extract changelog for this version
+        id: changelog
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          # Extract the section for this version from CHANGELOG.md
+          BODY=$(awk "/^## \\[${VERSION}\\]/{found=1; next} /^## \\[/{if(found) exit} found{print}" CHANGELOG.md)
+          if [ -z "$BODY" ]; then
+            BODY="Release ${GITHUB_REF_NAME}"
+          fi
+          # Write to file to preserve newlines
+          echo "$BODY" > release_notes.md
+          echo "" >> release_notes.md
+          echo "**Full Changelog**: https://github.com/${{ github.repository }}/compare/$(git describe --tags --abbrev=0 HEAD^)...${GITHUB_REF_NAME}" >> release_notes.md
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           files: release/*
-          generate_release_notes: true
+          body_path: release_notes.md
           draft: false
           prerelease: ${{ contains(github.ref, '-rc') || contains(github.ref, '-beta') || contains(github.ref, '-alpha') }}
