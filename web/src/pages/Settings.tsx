@@ -173,8 +173,14 @@ export default function Settings() {
               <div className="flex flex-wrap gap-2">
                 <Button size="sm" disabled={httpsLoading} onClick={async () => {
                   setHttpsLoading(true); setHttpsMsg("");
-                  try { const r = await setupHttps(); setHttpsMsg(r.message); if (r.success) setForm({ ...form, https_enabled: true }); fetchCertInfo().then(setCertInfo).catch(() => {}); }
-                  catch { setHttpsMsg("Failed."); }
+                  try {
+                    const r = await setupHttps();
+                    setHttpsMsg(r.message);
+                    if (r.success) {
+                      setHttpsMsg("Certificates installed! Server restarting... Restart your browser to trust the new CA.");
+                      setTimeout(() => window.location.reload(), 4000);
+                    }
+                  } catch { setHttpsMsg("Failed."); }
                   setHttpsLoading(false);
                 }}>
                   <Lock size={12} /> {httpsLoading ? "Setting up..." : "Install Certs"}
@@ -183,8 +189,14 @@ export default function Settings() {
                   <>
                     <Button variant="outline" size="sm" disabled={httpsLoading} onClick={async () => {
                       setHttpsLoading(true); setHttpsMsg("");
-                      try { const r = await regenerateCerts(); setHttpsMsg(r.message); fetchCertInfo().then(setCertInfo).catch(() => {}); }
-                      catch { setHttpsMsg("Failed."); }
+                      try {
+                        const r = await regenerateCerts();
+                        setHttpsMsg(r.message);
+                        if (r.success) {
+                          setHttpsMsg("Certificates regenerated! Server restarting...");
+                          setTimeout(() => window.location.reload(), 4000);
+                        }
+                      } catch { setHttpsMsg("Failed."); }
                       setHttpsLoading(false);
                     }}>
                       <RefreshCw size={12} /> Regenerate

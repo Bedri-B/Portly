@@ -34,6 +34,23 @@ class APIHandler(BaseHTTPRequestHandler):
         n = int(self.headers.get("Content-Length", 0))
         return self.rfile.read(n).decode() if n else ""
 
+    def _schedule_restart(self):
+        """Spawn a new daemon and exit after a short delay (so the response is sent)."""
+        def _do():
+            time.sleep(2)
+            exe = sys.executable
+            args = [exe] if getattr(sys, "frozen", False) else [exe, "-m", "portly"]
+            args.append("--daemon")
+            if SYSTEM == "Windows":
+                subprocess.Popen(args, creationflags=0x00000008 | 0x08000000,
+                                 stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, stdin=subprocess.DEVNULL)
+            else:
+                subprocess.Popen(args, start_new_session=True,
+                                 stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, stdin=subprocess.DEVNULL)
+            time.sleep(0.5)
+            os._exit(0)
+        threading.Thread(target=_do, daemon=True).start()
+
     def do_OPTIONS(self):
         self.send_response(200)
         for h, v in [("Access-Control-Allow-Origin", "*"),
@@ -133,9 +150,23 @@ class APIHandler(BaseHTTPRequestHandler):
         elif path == "/api/update/apply":
             self._json(perform_update())
         elif path == "/api/https/setup":
-            self._json(setup_https())
+            result = setup_https()
+            if result.get("success"):
+                config["https_enabled"] = True
+                save_config(config)
+                result["message"] += " Server will restart in 2 seconds. Restart your browser to trust the new CA."
+                self._json(result)
+                self._schedule_restart()
+            else:
+                self._json(result)
         elif path == "/api/https/regenerate":
-            self._json(regenerate_certs())
+            result = regenerate_certs()
+            if result.get("success"):
+                result["message"] += " Server will restart in 2 seconds."
+                self._json(result)
+                self._schedule_restart()
+            else:
+                self._json(result)
         elif path == "/api/startup/install":
             try:
                 service_install()
@@ -154,25 +185,7 @@ class APIHandler(BaseHTTPRequestHandler):
                 self._err(str(e))
         elif path == "/api/server/restart":
             self._json({"message": "Restarting portly..."})
-            # Spawn restart in a thread so the response is sent first
-            def _do_restart():
-                time.sleep(0.5)
-                exe = sys.executable
-                args = [exe]
-                if not getattr(sys, "frozen", False):
-                    args = [exe, "-m", "portly"]
-                args.append("--daemon")
-                if SYSTEM == "Windows":
-                    subprocess.Popen(args, creationflags=0x00000008 | 0x08000000,
-                                     stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-                                     stdin=subprocess.DEVNULL)
-                else:
-                    subprocess.Popen(args, start_new_session=True,
-                                     stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-                                     stdin=subprocess.DEVNULL)
-                time.sleep(0.5)
-                os._exit(0)
-            threading.Thread(target=_do_restart, daemon=True).start()
+            self._schedule_restart()
         else:
             self._err("Not found", 404)
 
