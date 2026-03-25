@@ -1,10 +1,13 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { fetchStatus, refreshServices, type StatusResponse, type ServiceInfo } from "@/lib/api";
-import { Globe, Loader2, RefreshCw, Container, Link, Radar, Lock, Zap, Copy, Check, ArrowRight } from "lucide-react";
+import { Globe, Loader2, RefreshCw, Container, Link, Radar, Lock, Zap, Copy, Check } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Separator } from "@/components/ui/separator";
+import { ChevronsUpDown } from "lucide-react";
 
 const SOURCE_META: Record<string, { label: string; description: string; Icon: typeof Globe }> = {
   docker: { label: "Docker Containers", description: "Auto-discovered from running containers", Icon: Container },
@@ -80,32 +83,41 @@ export default function Services() {
           <p className="text-sm mt-1">Start a Docker container, add an alias, or configure port scanning.</p>
         </div>
       ) : (
-        <div className="space-y-6">
+        <div className="space-y-4">
           {order.filter(k => groups[k]?.length).map(source => {
             const meta = SOURCE_META[source];
             const items = groups[source]!;
             const { Icon } = meta;
+            const runningInGroup = items.filter(s => s.state === "running").length;
             return (
-              <Card key={source}>
-                <CardHeader className="pb-3">
-                  <div className="flex items-center justify-between">
-                    <CardTitle className="text-sm flex items-center gap-2">
-                      <Icon size={14} /> {meta.label}
-                    </CardTitle>
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs text-muted-foreground">{meta.description}</span>
-                      <Badge variant="secondary">{items.length}</Badge>
+              <Collapsible key={source} defaultOpen>
+                <Card>
+                  <CollapsibleTrigger className="w-full">
+                    <div className="flex items-center justify-between px-5 py-3 hover:bg-muted/30 transition-colors cursor-pointer">
+                      <div className="flex items-center gap-2.5">
+                        <Icon size={15} className="text-muted-foreground" />
+                        <span className="text-sm font-semibold">{meta.label}</span>
+                        <span className="text-xs text-muted-foreground hidden sm:inline">{meta.description}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Badge variant="outline" className="text-green-500 border-green-500/30 text-[10px]">{runningInGroup} up</Badge>
+                        <Badge variant="secondary" className="text-[10px]">{items.length}</Badge>
+                        <ChevronsUpDown size={14} className="text-muted-foreground" />
+                      </div>
                     </div>
-                  </div>
-                </CardHeader>
-                <CardContent className="p-0">
-                  <div className="divide-y divide-border">
-                    {items.map(s => (
-                      <ServiceRow key={s.name} service={s} httpsOn={httpsOn} copied={copied} onCopy={handleCopy} />
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
+                  </CollapsibleTrigger>
+                  <CollapsibleContent>
+                    <Separator />
+                    <CardContent className="p-0">
+                      <div className="grid grid-cols-1 xl:grid-cols-2 2xl:grid-cols-3 gap-3 p-4">
+                        {items.map(s => (
+                          <ServiceCard key={s.name} service={s} httpsOn={httpsOn} copied={copied} onCopy={handleCopy} />
+                        ))}
+                      </div>
+                    </CardContent>
+                  </CollapsibleContent>
+                </Card>
+              </Collapsible>
             );
           })}
         </div>
@@ -114,50 +126,59 @@ export default function Services() {
   );
 }
 
-function ServiceRow({ service: s, httpsOn, copied, onCopy }: {
+function ServiceCard({ service: s, httpsOn, copied, onCopy }: {
   service: ServiceInfo; httpsOn: boolean; copied: string; onCopy: (u: string) => void;
 }) {
+  const isUp = s.state === "running";
   return (
-    <div className="flex items-center gap-4 px-5 py-3 hover:bg-muted/40 transition-colors">
-      {/* Status + Name */}
-      <span className={`w-2 h-2 rounded-full flex-shrink-0 ${s.state === "running" ? "bg-green-500 shadow-[0_0_6px] shadow-green-500" : "bg-red-500 shadow-[0_0_6px] shadow-red-500"}`} />
-      <span className="font-semibold text-sm w-44 truncate">{s.name}</span>
+    <div className="rounded-lg border bg-card p-4 space-y-3 hover:border-muted-foreground/20 transition-colors">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2.5 min-w-0">
+          <span className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${isUp ? "bg-green-500 shadow-[0_0_8px] shadow-green-500/50" : "bg-red-500 shadow-[0_0_8px] shadow-red-500/50"}`} />
+          <span className="font-semibold text-sm truncate">{s.name}</span>
+        </div>
+        <Badge variant={isUp ? "default" : "destructive"} className="text-[10px] flex-shrink-0">
+          {isUp ? "Running" : "Stopped"}
+        </Badge>
+      </div>
 
-      {/* URLs */}
-      <div className="flex-1 flex items-center gap-4 min-w-0">
-        <UrlPill url={s.http_url} copied={copied} onCopy={onCopy} icon={<Globe size={11} className="text-muted-foreground" />} />
-        {httpsOn && s.https_url && (
-          <UrlPill url={s.https_url} copied={copied} onCopy={onCopy} icon={<Lock size={11} className="text-green-500" />} https />
+      {/* Details */}
+      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+        <span className="font-mono">localhost:{s.port}</span>
+        {s.image && (
+          <>
+            <Separator orientation="vertical" className="h-3" />
+            <span className="truncate font-mono" title={s.image}>{s.image}</span>
+          </>
         )}
       </div>
 
-      {/* Target */}
-      <span className="text-xs text-muted-foreground font-mono flex items-center gap-1 flex-shrink-0">
-        <ArrowRight size={10} /> :{s.port}
-      </span>
+      {/* URLs */}
+      <div className="space-y-1.5">
+        <UrlRow label="HTTP" url={s.http_url} copied={copied} onCopy={onCopy} icon={<Globe size={11} className="text-blue-400" />} />
+        {httpsOn && s.https_url && (
+          <UrlRow label="HTTPS" url={s.https_url} copied={copied} onCopy={onCopy} icon={<Lock size={11} className="text-green-400" />} variant="https" />
+        )}
+      </div>
     </div>
   );
 }
 
-function UrlPill({ url, copied, onCopy, icon, https }: {
-  url: string; copied: string; onCopy: (u: string) => void; icon: React.ReactNode; https?: boolean;
+function UrlRow({ label, url, copied, onCopy, icon, variant }: {
+  label: string; url: string; copied: string; onCopy: (u: string) => void;
+  icon: React.ReactNode; variant?: "https";
 }) {
+  const isCopied = copied === url;
   return (
-    <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-muted/50 group min-w-0">
+    <div className="flex items-center gap-2 rounded-md border bg-muted/30 px-3 py-1.5 group">
       {icon}
-      <a
-        href={url}
-        target="_blank"
-        rel="noopener"
-        className={`text-xs font-mono truncate ${https ? "text-green-500 hover:text-green-400" : "text-primary hover:text-primary/80"} transition-colors`}
-      >
-        {url}
-      </a>
-      <button
-        onClick={() => onCopy(url)}
-        className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-foreground transition-all p-0.5 rounded flex-shrink-0"
-      >
-        {copied === url ? <Check size={11} className="text-green-500" /> : <Copy size={11} />}
+      <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground w-9 flex-shrink-0">{label}</span>
+      <a href={url} target="_blank" rel="noopener"
+        className={`text-xs font-mono truncate flex-1 transition-colors ${variant === "https" ? "text-green-400 hover:text-green-300" : "text-blue-400 hover:text-blue-300"}`}
+      >{url}</a>
+      <button onClick={() => onCopy(url)} className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-foreground transition-all p-1 rounded-sm hover:bg-accent flex-shrink-0" title="Copy">
+        {isCopied ? <Check size={11} className="text-green-500" /> : <Copy size={11} />}
       </button>
     </div>
   );
