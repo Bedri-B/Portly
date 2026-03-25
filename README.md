@@ -273,6 +273,58 @@ Or enable auto-updates in the dashboard (Settings > Updates) or in `config.json`
 
 When enabled, portly checks for updates hourly and installs them automatically.
 
+## Development
+
+### Quick start
+
+```bash
+git clone https://github.com/Bedri-B/Portly.git && cd Portly
+
+# One-command setup (installs deps, builds dashboard)
+bash scripts/dev-setup.sh          # macOS/Linux
+powershell scripts/dev-setup.ps1   # Windows
+```
+
+### Running locally
+
+```bash
+# Backend + frontend together (recommended)
+python scripts/dev.py
+
+# Backend only
+python -m portly --no-browser      # foreground, shows logs
+
+# Frontend with hot reload (separate terminal)
+cd web && npm run dev              # Vite on :5173
+```
+
+When running both, use `http://localhost:5173` — Vite proxies `/api/*` to the backend and hot-reloads on changes.
+
+### Pre-commit checks
+
+```bash
+python scripts/check.py
+```
+
+Verifies all Python compiles, frontend builds, and required files exist.
+
+### Project structure
+
+```
+portly/              Python package (stdlib only, no pip deps at runtime)
+  cli.py             CLI commands (start, stop, alias, update)
+  server.py          Server launchers, PID management
+  api.py             REST API endpoints
+  proxy.py           Reverse proxy (routes *.localhost to services)
+  registry.py        Route registry (Docker + aliases + port scan)
+  discovery.py       Docker discovery, parallel port scanning
+  tls.py             Certificate generation + mkcert management
+scripts/             Dev tooling, build, install scripts
+web/                 React dashboard (Vite + TypeScript)
+```
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for architecture details and contribution guidelines.
+
 ## Contributing
 
 Contributions are welcome! Please read the [Contributing Guide](CONTRIBUTING.md) before submitting a PR.
