@@ -83,6 +83,76 @@ def _install_mkcert() -> str | None:
     return None
 
 
+def cert_info() -> dict:
+    """Return info about current certificates."""
+    cert_file = CERT_DIR / "localhost.pem"
+    key_file = CERT_DIR / "localhost-key.pem"
+    mkcert = _find_mkcert()
+
+    info = {
+        "exists": cert_file.exists() and key_file.exists(),
+        "cert_path": str(cert_file),
+        "key_path": str(key_file),
+        "mkcert_installed": mkcert is not None,
+        "method": "unknown",
+        "expires": None,
+        "domains": [],
+    }
+
+    if not info["exists"]:
+        info["method"] = "none"
+        return info
+
+    # Parse cert for expiry and SANs using openssl
+    openssl = shutil.which("openssl")
+    if openssl and cert_file.exists():
+        try:
+            r = run_cmd([openssl, "x509", "-in", str(cert_file), "-noout",
+                         "-enddate", "-subject", "-issuer", "-ext", "subjectAltName"])
+            text = r.stdout
+            # Expiry
+            for line in text.splitlines():
+                if "notAfter" in line:
+                    info["expires"] = line.split("=", 1)[1].strip()
+                if "DNS:" in line or "IP:" in line:
+                    parts = line.strip().split(",")
+                    for p in parts:
+                        p = p.strip()
+                        if p.startswith("DNS:") or p.startswith("IP Address:"):
+                            info["domains"].append(p.split(":", 1)[1])
+            # Check if mkcert-issued (issuer contains "mkcert")
+            if "mkcert" in text.lower():
+                info["method"] = "mkcert"
+            else:
+                info["method"] = "self-signed"
+        except Exception:
+            info["method"] = "unknown"
+
+    return info
+
+
+def remove_certs() -> dict:
+    """Delete existing certificates."""
+    cert_file = CERT_DIR / "localhost.pem"
+    key_file = CERT_DIR / "localhost-key.pem"
+    removed = []
+    if cert_file.exists():
+        cert_file.unlink()
+        removed.append(str(cert_file))
+    if key_file.exists():
+        key_file.unlink()
+        removed.append(str(key_file))
+    if removed:
+        return {"success": True, "message": "Certificates removed. Disable HTTPS or regenerate.", "removed": removed}
+    return {"success": True, "message": "No certificates to remove."}
+
+
+def regenerate_certs() -> dict:
+    """Remove old certs and generate new ones."""
+    remove_certs()
+    return setup_https()
+
+
 def setup_https() -> dict:
     """Full HTTPS setup: install mkcert if needed, generate trusted certs.
     Returns a status dict for the API."""

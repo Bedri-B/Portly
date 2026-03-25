@@ -9,7 +9,7 @@ from portly.registry import registry
 from portly.discovery import collect_scan_ports
 from portly.updater import check_update, perform_update
 from portly.service import service_install, service_uninstall
-from portly.tls import setup_https
+from portly.tls import setup_https, cert_info, remove_certs, regenerate_certs
 
 
 class APIHandler(BaseHTTPRequestHandler):
@@ -58,6 +58,8 @@ class APIHandler(BaseHTTPRequestHandler):
             self._json({"config": config})
         elif path == "/api/update/check":
             self._json(check_update())
+        elif path == "/api/https/status":
+            self._json(cert_info())
         else:
             self._err("Not found", 404)
 
@@ -115,6 +117,8 @@ class APIHandler(BaseHTTPRequestHandler):
             self._json(perform_update())
         elif path == "/api/https/setup":
             self._json(setup_https())
+        elif path == "/api/https/regenerate":
+            self._json(regenerate_certs())
         elif path == "/api/startup/install":
             try:
                 service_install()
@@ -170,6 +174,8 @@ class APIHandler(BaseHTTPRequestHandler):
                 self._json({"message": f"Removed '{name}'", "aliases": aliases})
             else:
                 self._err(f"'{name}' not found", 404)
+        elif path == "/api/https/certs":
+            self._json(remove_certs())
         elif path.startswith("/api/short-aliases/"):
             name = path.split("/")[-1]
             sa = config.get("short_aliases", {})

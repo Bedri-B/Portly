@@ -6,13 +6,17 @@ import {
   checkUpdate,
   applyUpdate,
   setupHttps,
+  regenerateCerts,
+  removeCerts,
+  fetchCertInfo,
   installStartup,
   uninstallStartup,
+  type CertInfo,
   type StatusResponse,
   type AppConfig,
   type UpdateInfo,
 } from "../lib/api";
-import { Save, Loader2, Info, RotateCcw, Lock, Globe, Download, RefreshCw, Power, Container } from "lucide-react";
+import { Save, Loader2, Info, RotateCcw, Lock, Globe, Download, RefreshCw, Power, Container, Trash2 } from "lucide-react";
 
 export default function Settings() {
   const qc = useQueryClient();
@@ -44,10 +48,16 @@ export default function Settings() {
   const [startupLoading, setStartupLoading] = useState(false);
   const [httpsSetupLoading, setHttpsSetupLoading] = useState(false);
   const [httpsMsg, setHttpsMsg] = useState("");
+  const [certInfo, setCertInfo] = useState<CertInfo | null>(null);
+  const [certLoading, setCertLoading] = useState(false);
 
   useEffect(() => {
     if (data?.config) setForm(data.config);
   }, [data]);
+
+  useEffect(() => {
+    fetchCertInfo().then(setCertInfo).catch(() => {});
+  }, []);
 
   const save = async () => {
     setSaving(true);
@@ -155,58 +165,146 @@ export default function Settings() {
         </div>
 
         {/* HTTPS */}
-        <div className="card">
+        <div className="card" style={{ gridColumn: "1 / -1" }}>
           <div className="card-header">
             <span className="card-title"><Lock size={14} /> HTTPS</span>
-            {form.https_enabled && <span className="badge badge-green">Enabled</span>}
-          </div>
-          <div className="card-body" style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-            <label className="toggle-row">
-              <input
-                type="checkbox"
-                checked={form.https_enabled}
-                onChange={(e) => setForm({ ...form, https_enabled: e.target.checked })}
-              />
-              <div>
-                <div className="toggle-label">Enable HTTPS proxy</div>
-                <div className="toggle-desc">Requires trusted certificates (mkcert)</div>
-              </div>
-            </label>
-            <div className="field">
-              <span className="field-label">HTTPS port</span>
-              <input type="number" value={form.https_port} onChange={(e) => setForm({ ...form, https_port: +e.target.value || 443 })} style={{ width: 120 }} />
-            </div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-              <button
-                className="btn btn-blue btn-sm"
-                disabled={httpsSetupLoading}
-                onClick={async () => {
-                  setHttpsSetupLoading(true);
-                  setHttpsMsg("");
-                  try {
-                    const res = await setupHttps();
-                    setHttpsMsg(res.message);
-                    if (res.success) {
-                      setForm({ ...form, https_enabled: true });
-                    }
-                  } catch {
-                    setHttpsMsg("Setup failed.");
-                  }
-                  setHttpsSetupLoading(false);
-                }}
-              >
-                <Lock size={12} />
-                {httpsSetupLoading ? "Setting up..." : "Install certificates"}
-              </button>
-              <span className="field-help">
-                Installs mkcert (if needed) and generates trusted certificates.
-                Browsers will trust *.localhost with no warnings.
-              </span>
-              {httpsMsg && (
-                <span style={{ fontSize: 12, color: httpsMsg.includes("fail") || httpsMsg.includes("Could not") ? "var(--red)" : "var(--green)" }}>
-                  {httpsMsg}
+            <div style={{ display: "flex", gap: 6 }}>
+              {certInfo?.exists && (
+                <span className={`badge ${certInfo.method === "mkcert" ? "badge-green" : "badge-yellow"}`}>
+                  {certInfo.method === "mkcert" ? "Trusted" : "Self-signed"}
                 </span>
               )}
+              {form.https_enabled
+                ? <span className="badge badge-green">Enabled</span>
+                : <span className="badge badge-gray">Disabled</span>
+              }
+            </div>
+          </div>
+          <div className="card-body" style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+              {/* Left: toggle + port */}
+              <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                <label className="toggle-row">
+                  <input
+                    type="checkbox"
+                    checked={form.https_enabled}
+                    onChange={(e) => setForm({ ...form, https_enabled: e.target.checked })}
+                  />
+                  <div>
+                    <div className="toggle-label">Enable HTTPS proxy</div>
+                    <div className="toggle-desc">Requires trusted certificates (mkcert)</div>
+                  </div>
+                </label>
+                <div className="field">
+                  <span className="field-label">HTTPS port</span>
+                  <input type="number" value={form.https_port} onChange={(e) => setForm({ ...form, https_port: +e.target.value || 443 })} style={{ width: 120 }} />
+                  <span className="field-help">443 for default HTTPS, falls back to 19444 if unavailable</span>
+                </div>
+              </div>
+
+              {/* Right: cert info + actions */}
+              <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                {/* Cert status */}
+                {certInfo && (
+                  <div style={{ padding: "12px 14px", background: "var(--bg-surface)", borderRadius: "var(--radius)", fontSize: 12 }}>
+                    {certInfo.exists ? (
+                      <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                        <div>
+                          <span style={{ color: "var(--text-dim)" }}>Method:</span>{" "}
+                          <span style={{ fontWeight: 600, color: certInfo.method === "mkcert" ? "var(--green)" : "var(--yellow)" }}>
+                            {certInfo.method === "mkcert" ? "mkcert (trusted)" : certInfo.method}
+                          </span>
+                        </div>
+                        {certInfo.expires && (
+                          <div>
+                            <span style={{ color: "var(--text-dim)" }}>Expires:</span>{" "}
+                            <span style={{ fontFamily: "var(--mono)" }}>{certInfo.expires}</span>
+                          </div>
+                        )}
+                        {certInfo.domains.length > 0 && (
+                          <div>
+                            <span style={{ color: "var(--text-dim)" }}>Domains:</span>{" "}
+                            <span style={{ fontFamily: "var(--mono)" }}>{certInfo.domains.join(", ")}</span>
+                          </div>
+                        )}
+                        <div>
+                          <span style={{ color: "var(--text-dim)" }}>mkcert:</span>{" "}
+                          <span style={{ color: certInfo.mkcert_installed ? "var(--green)" : "var(--text-muted)" }}>
+                            {certInfo.mkcert_installed ? "installed" : "not found"}
+                          </span>
+                        </div>
+                      </div>
+                    ) : (
+                      <div style={{ color: "var(--text-dim)" }}>No certificates installed.</div>
+                    )}
+                  </div>
+                )}
+
+                {/* Action buttons */}
+                <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                  <button
+                    className="btn btn-blue btn-sm"
+                    disabled={httpsSetupLoading || certLoading}
+                    onClick={async () => {
+                      setHttpsSetupLoading(true);
+                      setHttpsMsg("");
+                      try {
+                        const res = await setupHttps();
+                        setHttpsMsg(res.message);
+                        if (res.success) setForm({ ...form, https_enabled: true });
+                        fetchCertInfo().then(setCertInfo).catch(() => {});
+                      } catch { setHttpsMsg("Setup failed."); }
+                      setHttpsSetupLoading(false);
+                    }}
+                  >
+                    <Lock size={12} />
+                    {httpsSetupLoading ? "Setting up..." : certInfo?.exists ? "Install certificates" : "Setup HTTPS"}
+                  </button>
+
+                  {certInfo?.exists && (
+                    <>
+                      <button
+                        className="btn btn-ghost btn-sm"
+                        disabled={certLoading}
+                        onClick={async () => {
+                          setCertLoading(true);
+                          setHttpsMsg("");
+                          try {
+                            const res = await regenerateCerts();
+                            setHttpsMsg(res.message);
+                            fetchCertInfo().then(setCertInfo).catch(() => {});
+                          } catch { setHttpsMsg("Regeneration failed."); }
+                          setCertLoading(false);
+                        }}
+                      >
+                        <RefreshCw size={12} /> Regenerate
+                      </button>
+                      <button
+                        className="btn btn-red btn-sm"
+                        disabled={certLoading}
+                        onClick={async () => {
+                          setCertLoading(true);
+                          setHttpsMsg("");
+                          try {
+                            const res = await removeCerts();
+                            setHttpsMsg(res.message);
+                            setCertInfo({ ...certInfo, exists: false, method: "none", expires: null, domains: [] });
+                          } catch { setHttpsMsg("Remove failed."); }
+                          setCertLoading(false);
+                        }}
+                      >
+                        <Trash2 size={12} /> Remove
+                      </button>
+                    </>
+                  )}
+                </div>
+
+                {httpsMsg && (
+                  <span style={{ fontSize: 12, color: httpsMsg.includes("fail") || httpsMsg.includes("Could not") ? "var(--red)" : "var(--green)" }}>
+                    {httpsMsg}
+                  </span>
+                )}
+              </div>
             </div>
           </div>
         </div>

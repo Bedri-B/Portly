@@ -115,8 +115,34 @@ export const applyUpdate = async () => {
   return res.json();
 };
 
+export interface CertInfo {
+  exists: boolean;
+  cert_path: string;
+  key_path: string;
+  mkcert_installed: boolean;
+  method: string;
+  expires: string | null;
+  domains: string[];
+}
+
+export const fetchCertInfo = async (): Promise<CertInfo> => {
+  const res = await fetch(`${API}/api/https/status`);
+  if (!res.ok) throw new Error("Failed to fetch cert info");
+  return res.json();
+};
+
 export const setupHttps = async () => {
   const res = await fetch(`${API}/api/https/setup`, { method: "POST" });
+  return res.json();
+};
+
+export const regenerateCerts = async () => {
+  const res = await fetch(`${API}/api/https/regenerate`, { method: "POST" });
+  return res.json();
+};
+
+export const removeCerts = async () => {
+  const res = await fetch(`${API}/api/https/certs`, { method: "DELETE" });
   return res.json();
 };
 
