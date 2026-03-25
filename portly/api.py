@@ -1,10 +1,15 @@
 """REST API handler."""
 
 import json
+import os
+import subprocess
+import sys
+import threading
+import time
 from http.server import BaseHTTPRequestHandler
 from urllib.parse import urlparse
 
-from portly.config import config, save_config, VERSION
+from portly.config import config, save_config, VERSION, SYSTEM, PID_PATH, _SUBPROCESS_FLAGS
 from portly.registry import registry
 from portly.discovery import collect_scan_ports
 from portly.updater import check_update, perform_update
@@ -135,6 +140,27 @@ class APIHandler(BaseHTTPRequestHandler):
                 self._json({"message": "Auto-start disabled.", "auto_start": False})
             except Exception as e:
                 self._err(str(e))
+        elif path == "/api/server/restart":
+            self._json({"message": "Restarting portly..."})
+            # Spawn restart in a thread so the response is sent first
+            def _do_restart():
+                time.sleep(0.5)
+                exe = sys.executable
+                args = [exe]
+                if not getattr(sys, "frozen", False):
+                    args = [exe, "-m", "portly"]
+                args.append("--daemon")
+                if SYSTEM == "Windows":
+                    subprocess.Popen(args, creationflags=0x00000008 | 0x08000000,
+                                     stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                                     stdin=subprocess.DEVNULL)
+                else:
+                    subprocess.Popen(args, start_new_session=True,
+                                     stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                                     stdin=subprocess.DEVNULL)
+                time.sleep(0.5)
+                os._exit(0)
+            threading.Thread(target=_do_restart, daemon=True).start()
         else:
             self._err("Not found", 404)
 

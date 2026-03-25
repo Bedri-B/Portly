@@ -102,8 +102,9 @@ def run_server():
     ps = f":{proxy_port}" if proxy_port != 80 else ""
 
     print(f"\n  portly")
-    print(f"  Domain: *{domain}{ps}")
-    print(f"  Config: {CONFIG_PATH}\n")
+    print(f"  Domain:    *{domain}{ps}")
+    print(f"  Dashboard: http://portly{domain}{ps}")
+    print(f"  Config:    {CONFIG_PATH}\n")
 
     threads = [
         threading.Thread(target=_serve, args=(config["api_port"], APIHandler, "API"), daemon=True),

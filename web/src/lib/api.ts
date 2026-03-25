@@ -146,6 +146,11 @@ export const removeCerts = async () => {
   return res.json();
 };
 
+export const restartServer = async () => {
+  const res = await fetch(`${API}/api/server/restart`, { method: "POST" });
+  return res.json();
+};
+
 export const installStartup = async () => {
   const res = await fetch(`${API}/api/startup/install`, { method: "POST" });
   return res.json();

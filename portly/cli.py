@@ -13,7 +13,9 @@ from portly.service import service_install, service_uninstall
 
 
 def _dashboard_url() -> str:
-    return f"http://localhost:{config['web_port']}"
+    domain = config["domain"]
+    ps = f":{config['proxy_port']}" if config["proxy_port"] != 80 else ""
+    return f"http://portly{domain}{ps}"
 
 
 def _start_background():
@@ -25,7 +27,6 @@ def _start_background():
     args.append("--daemon")
 
     if SYSTEM == "Windows":
-        # DETACHED_PROCESS | CREATE_NO_WINDOW
         subprocess.Popen(args, creationflags=0x00000008 | 0x08000000,
                          stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
                          stdin=subprocess.DEVNULL)
@@ -45,16 +46,22 @@ def _wait_for_server(timeout: float = 5.0) -> bool:
     return False
 
 
-def _setup_autostart():
-    """On first run, install as a startup service if auto_start is enabled."""
-    if not config.get("auto_start", True):
-        return
-    if not getattr(sys, "frozen", False):
-        return  # Only for packaged binaries
+def _stop_server() -> bool:
+    """Stop the running server. Returns True if stopped."""
+    from portly.config import PID_PATH
+    if not is_running():
+        return False
     try:
-        service_install()
+        pid = int(PID_PATH.read_text().strip())
+        if SYSTEM == "Windows":
+            subprocess.run(["taskkill", "/F", "/PID", str(pid)],
+                           capture_output=True, **_SUBPROCESS_FLAGS)
+        else:
+            os.kill(pid, 15)
+        PID_PATH.unlink(missing_ok=True)
+        return True
     except Exception:
-        pass  # Non-fatal; user can set it up manually
+        return False
 
 
 def cli_alias(args):
@@ -112,7 +119,6 @@ def cli_aliases():
 
 
 def cli_update():
-    """Check for updates and optionally install."""
     from portly.updater import check_update, perform_update
     print("Checking for updates...")
     info = check_update()
@@ -127,7 +133,6 @@ def cli_update():
 
 
 def cli_status():
-    """Show whether portly is running."""
     if is_running():
         print(f"portly is running — {_dashboard_url()}")
     else:
@@ -148,20 +153,22 @@ def main():
         return
 
     if not args:
-        # If already running, just open the dashboard
+        # If already running, just open the dashboard and exit
         if is_running():
-            print(f"portly is already running — opening dashboard.")
-            webbrowser.open(_dashboard_url())
+            url = _dashboard_url()
+            print(f"portly is running — {url}")
+            webbrowser.open(url)
             return
 
-        # Start in background, wait for it, then open dashboard
+        # Start in background, print info, open dashboard, exit
         print("Starting portly...")
         _start_background()
         if _wait_for_server():
-            print(f"portly is running — {_dashboard_url()}")
-            webbrowser.open(_dashboard_url())
+            url = _dashboard_url()
+            print(f"portly is running — {url}")
+            webbrowser.open(url)
         else:
-            print("portly started (waiting for server timed out, it may still be starting).")
+            print("portly started (server may still be initializing).")
             webbrowser.open(_dashboard_url())
         return
 
@@ -189,35 +196,14 @@ def main():
             else:
                 print("Started (server may still be initializing).")
     elif cmd in ("stop",):
-        from portly.config import PID_PATH
-        if not is_running():
-            print("portly is not running.")
-            return
-        try:
-            pid = int(PID_PATH.read_text().strip())
-            if SYSTEM == "Windows":
-                subprocess.run(["taskkill", "/F", "/PID", str(pid)],
-                               capture_output=True, **_SUBPROCESS_FLAGS)
-            else:
-                os.kill(pid, 15)  # SIGTERM
-            PID_PATH.unlink(missing_ok=True)
+        if _stop_server():
             print("portly stopped.")
-        except Exception as e:
-            print(f"Failed to stop: {e}")
+        else:
+            print("portly is not running.")
     elif cmd in ("restart",):
-        from portly.config import PID_PATH
         if is_running():
-            try:
-                pid = int(PID_PATH.read_text().strip())
-                if SYSTEM == "Windows":
-                    subprocess.run(["taskkill", "/F", "/PID", str(pid)],
-                                   capture_output=True, **_SUBPROCESS_FLAGS)
-                else:
-                    os.kill(pid, 15)
-                PID_PATH.unlink(missing_ok=True)
-                time.sleep(1)
-            except Exception:
-                pass
+            _stop_server()
+            time.sleep(1)
         print("Starting portly...")
         _start_background()
         if _wait_for_server():
@@ -229,6 +215,7 @@ def main():
     elif cmd in ("update",):
         cli_update()
     elif cmd == "--no-browser":
+        # Foreground mode for debugging
         run_server()
         try:
             while True:
@@ -254,6 +241,8 @@ Usage:
 
   portly update                   Check for updates and install
   portly help                     Show this help
+
+Dashboard: {_dashboard_url()}
 """)
     else:
         print(f"Unknown: {cmd}. Run 'portly help'.")

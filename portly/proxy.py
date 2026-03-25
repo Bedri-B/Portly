@@ -7,19 +7,30 @@ from http.server import BaseHTTPRequestHandler
 from portly.config import config
 from portly.registry import registry
 
+# Reserved subdomain — routes to the dashboard/API
+DASHBOARD_NAME = "portly"
+
 
 class ProxyHandler(BaseHTTPRequestHandler):
-    def _target_port(self) -> int | None:
+    def _resolve(self) -> tuple[str, int | None]:
+        """Returns (kind, port). kind is 'dashboard', 'service', or 'none'."""
         host = self.headers.get("Host", "").split(":")[0]
         domain = config["domain"]
         if host in ("localhost", "127.0.0.1", ""):
-            return None
-        name = host[: -len(domain)] if host.endswith(domain) else host
-        return registry.lookup(name)
+            return "none", None
+        if not host.endswith(domain):
+            return "none", None
+        name = host[: -len(domain)]
+        if name == DASHBOARD_NAME:
+            return "dashboard", config["web_port"]
+        port = registry.lookup(name)
+        if port is not None:
+            return "service", port
+        return "none", None
 
     def _proxy(self, body: bytes = b""):
-        port = self._target_port()
-        if port is None:
+        kind, port = self._resolve()
+        if kind == "none":
             self._fallback()
             return
         try:
@@ -45,9 +56,12 @@ class ProxyHandler(BaseHTTPRequestHandler):
             self.wfile.write(msg)
 
     def _fallback(self):
+        domain = config["domain"]
+        ps = f":{config['proxy_port']}" if config["proxy_port"] != 80 else ""
+        dashboard_url = f"http://{DASHBOARD_NAME}{domain}{ps}"
         body = json.dumps({
             "services": registry.all_services(),
-            "dashboard": f"http://localhost:{config['web_port']}",
+            "dashboard": dashboard_url,
         }, indent=2).encode()
         self.send_response(200)
         self.send_header("Content-Type", "application/json")

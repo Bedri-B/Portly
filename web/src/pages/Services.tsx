@@ -2,7 +2,6 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { fetchStatus, refreshServices, type StatusResponse } from "../lib/api";
 import {
   Globe,
-  ExternalLink,
   Loader2,
   ArrowRight,
   RefreshCw,
@@ -11,7 +10,9 @@ import {
   Radar,
   Lock,
   Zap,
+  Copy,
 } from "lucide-react";
+import { useState } from "react";
 
 const SOURCE_META: Record<string, { label: string; color: string; Icon: typeof Globe }> = {
   docker: { label: "Docker", color: "badge-blue", Icon: Container },
@@ -19,6 +20,10 @@ const SOURCE_META: Record<string, { label: string; color: string; Icon: typeof G
   scan: { label: "Scanned", color: "badge-yellow", Icon: Radar },
   unknown: { label: "Unknown", color: "badge-gray", Icon: Globe },
 };
+
+function copyText(text: string) {
+  navigator.clipboard.writeText(text).catch(() => {});
+}
 
 export default function Services() {
   const qc = useQueryClient();
@@ -30,6 +35,7 @@ export default function Services() {
     mutationFn: refreshServices,
     onSettled: () => qc.invalidateQueries({ queryKey: ["status"] }),
   });
+  const [copied, setCopied] = useState("");
 
   if (!data) {
     return (
@@ -42,10 +48,15 @@ export default function Services() {
   }
 
   const { services, config: cfg } = data;
-  const portSuffix = cfg.proxy_port === 80 ? "" : `:${cfg.proxy_port}`;
-
+  const httpsOn = cfg.https_enabled;
   const running = services.filter(s => s.state === "running").length;
   const stopped = services.length - running;
+
+  const handleCopy = (url: string) => {
+    copyText(url);
+    setCopied(url);
+    setTimeout(() => setCopied(""), 1500);
+  };
 
   return (
     <div className="page">
@@ -59,10 +70,7 @@ export default function Services() {
           </p>
         </div>
         <div className="page-header-actions">
-          <span className="badge badge-gray">
-            <Globe size={11} /> *{cfg.domain}{portSuffix}
-          </span>
-          {cfg.https_enabled && (
+          {httpsOn && (
             <span className="badge badge-green">
               <Lock size={11} /> HTTPS
             </span>
@@ -72,7 +80,7 @@ export default function Services() {
             onClick={() => refreshMut.mutate()}
             disabled={refreshMut.isPending}
           >
-            <RefreshCw size={13} className={refreshMut.isPending ? "spinning" : ""} />
+            <RefreshCw size={13} />
             Refresh
           </button>
         </div>
@@ -87,26 +95,62 @@ export default function Services() {
           </p>
         </div>
       ) : (
-        <div className="services-grid">
+        <div className="services-list">
           {services.map((s, i) => {
             const meta = SOURCE_META[s.source] || SOURCE_META.unknown;
             const { Icon } = meta;
             return (
               <div
                 key={s.name}
-                className="service-row"
+                className="svc-card"
                 style={{ animationDelay: `${i * 0.03}s` }}
               >
-                <span className={`dot ${s.state === "running" ? "dot-green" : "dot-red"}`} />
-                <span className="service-name">{s.name}</span>
-                <a href={s.url} target="_blank" rel="noopener" className="service-url">
-                  {s.url} <ExternalLink size={10} />
-                </a>
-                <ArrowRight size={13} style={{ color: "var(--text-muted)", flexShrink: 0 }} />
-                <span className="service-direct">:{s.port}</span>
-                <span className={`badge ${meta.color}`}>
-                  <Icon size={10} /> {meta.label}
-                </span>
+                <div className="svc-card-header">
+                  <span className={`dot ${s.state === "running" ? "dot-green" : "dot-red"}`} />
+                  <span className="svc-name">{s.name}</span>
+                  <span className={`badge ${meta.color}`} style={{ marginLeft: "auto" }}>
+                    <Icon size={10} /> {meta.label}
+                  </span>
+                </div>
+
+                <div className="svc-card-urls">
+                  {/* HTTP link */}
+                  <div className="svc-url-row">
+                    <Globe size={12} className="svc-url-icon" />
+                    <a href={s.http_url} target="_blank" rel="noopener" className="svc-url-link">
+                      {s.http_url}
+                    </a>
+                    <button
+                      className="svc-url-copy"
+                      onClick={() => handleCopy(s.http_url)}
+                      title="Copy URL"
+                    >
+                      {copied === s.http_url ? "Copied!" : <Copy size={12} />}
+                    </button>
+                  </div>
+
+                  {/* HTTPS link (when enabled) */}
+                  {httpsOn && s.https_url && (
+                    <div className="svc-url-row">
+                      <Lock size={12} className="svc-url-icon" style={{ color: "var(--green)" }} />
+                      <a href={s.https_url} target="_blank" rel="noopener" className="svc-url-link">
+                        {s.https_url}
+                      </a>
+                      <button
+                        className="svc-url-copy"
+                        onClick={() => handleCopy(s.https_url!)}
+                        title="Copy URL"
+                      >
+                        {copied === s.https_url ? "Copied!" : <Copy size={12} />}
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                <div className="svc-card-footer">
+                  <ArrowRight size={12} style={{ color: "var(--text-muted)" }} />
+                  <span className="svc-direct">localhost:{s.port}</span>
+                </div>
               </div>
             );
           })}
