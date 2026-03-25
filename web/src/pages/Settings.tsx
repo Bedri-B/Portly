@@ -134,8 +134,8 @@ export default function Settings() {
                 <Switch checked={form.docker_discovery} onCheckedChange={(v) => setForm({ ...form, docker_discovery: v })} />
               </div>
               <Separator />
-              <Field label="Strip prefix from Docker names" help="global_pgadmin → pgadmin.localhost">
-                <Input value={form.docker_strip_prefix ?? ""} onChange={(e) => setForm({ ...form, docker_strip_prefix: e.target.value })} placeholder="e.g. global_" className="font-mono" />
+              <Field label="Strip prefix from Docker names" help="Comma-separated. Include the separator (e.g. the underscore). global_pgadmin → pgadmin.localhost">
+                <Input value={form.docker_strip_prefix ?? ""} onChange={(e) => setForm({ ...form, docker_strip_prefix: e.target.value })} placeholder="e.g. global_, myproject-" className="font-mono" />
               </Field>
             </CardContent>
           </Card>
