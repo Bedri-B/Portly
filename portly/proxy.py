@@ -142,9 +142,19 @@ class ProxyHandler(BaseHTTPRequestHandler):
             return
 
         try:
-            conn = http.client.HTTPConnection("127.0.0.1", port, timeout=30)
-            conn.request(self.command, self.path, body=body or None,
-                         headers={k: v for k, v in self.headers.items()})
+            # Try IPv4 first, fall back to IPv6
+            conn = None
+            for target_host in ("127.0.0.1", "::1"):
+                try:
+                    conn = http.client.HTTPConnection(target_host, port, timeout=30)
+                    conn.request(self.command, self.path, body=body or None,
+                                 headers={k: v for k, v in self.headers.items()})
+                    break
+                except (ConnectionRefusedError, OSError):
+                    conn = None
+                    continue
+            if conn is None:
+                raise ConnectionRefusedError(f"Could not connect to port {port}")
             resp = conn.getresponse()
             data = resp.read()
             self.send_response(resp.status)

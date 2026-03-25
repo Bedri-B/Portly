@@ -10,11 +10,14 @@ from portly.config import config, run_cmd, COMMON_DEV_PORTS
 # ── Port Probing ─────────────────────────────────────────────────────────────
 
 def port_is_open(port: int) -> bool:
-    try:
-        with socket.create_connection(("127.0.0.1", port), timeout=0.3):
-            return True
-    except (OSError, ConnectionRefusedError):
-        return False
+    """Check if a port is open on localhost (tries IPv4 then IPv6)."""
+    for host in ("127.0.0.1", "::1"):
+        try:
+            with socket.create_connection((host, port), timeout=0.3):
+                return True
+        except (OSError, ConnectionRefusedError):
+            continue
+    return False
 
 
 def scan_ports_parallel(ports: list[int]) -> set[int]:

@@ -21,9 +21,18 @@ class WebHandler(BaseHTTPRequestHandler):
     def _proxy_api(self, body: bytes = b""):
         """Forward /api/* requests to the API server."""
         try:
-            conn = http.client.HTTPConnection("127.0.0.1", config["api_port"], timeout=10)
-            headers = {k: v for k, v in self.headers.items()}
-            conn.request(self.command, self.path, body=body or None, headers=headers)
+            api_port = config["api_port"]
+            conn = None
+            for host in ("127.0.0.1", "::1"):
+                try:
+                    conn = http.client.HTTPConnection(host, api_port, timeout=10)
+                    headers = {k: v for k, v in self.headers.items()}
+                    conn.request(self.command, self.path, body=body or None, headers=headers)
+                    break
+                except (ConnectionRefusedError, OSError):
+                    conn = None
+            if conn is None:
+                raise ConnectionRefusedError("API server unreachable")
             resp = conn.getresponse()
             data = resp.read()
             self.send_response(resp.status)
