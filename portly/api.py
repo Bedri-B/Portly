@@ -9,7 +9,7 @@ import time
 from http.server import BaseHTTPRequestHandler
 from urllib.parse import urlparse
 
-from portly.config import config, save_config, VERSION, SYSTEM, PID_PATH, _SUBPROCESS_FLAGS
+from portly.config import config, save_config, VERSION, SYSTEM, PID_PATH, _SUBPROCESS_FLAGS, resolve_lan_config, invalidate_lan_cache
 from portly.registry import registry
 from portly.discovery import collect_scan_ports
 from portly.updater import check_update, perform_update
@@ -70,6 +70,7 @@ class APIHandler(BaseHTTPRequestHandler):
                 "short_aliases": config.get("short_aliases", {}),
                 "scan_ports": config.get("scan_ports", []),
                 "scan_ranges": config.get("scan_ranges", []),
+                "lan": resolve_lan_config(),
                 "version": VERSION,
             })
         elif path == "/api/services":
@@ -183,6 +184,37 @@ class APIHandler(BaseHTTPRequestHandler):
                 self._json({"message": "Auto-start disabled.", "auto_start": False})
             except Exception as e:
                 self._err(str(e))
+        elif path == "/api/lan/enable":
+            lan = config.get("lan", {})
+            lan["enabled"] = True
+            config["lan"] = lan
+            save_config(config)
+            invalidate_lan_cache()
+            resolved = resolve_lan_config()
+            self._json({"message": f"LAN access enabled. IP: {resolved.get('ip', 'unknown')}", "lan": resolved})
+        elif path == "/api/lan/disable":
+            lan = config.get("lan", {})
+            lan["enabled"] = False
+            config["lan"] = lan
+            save_config(config)
+            invalidate_lan_cache()
+            self._json({"message": "LAN access disabled.", "lan": resolve_lan_config()})
+        elif path == "/api/lan/configure":
+            try:
+                data = json.loads(self._body())
+                lan = config.get("lan", {})
+                if "domain" in data:
+                    lan["domain"] = data["domain"]
+                if "ip" in data:
+                    lan["ip"] = data["ip"]
+                if "enabled" in data:
+                    lan["enabled"] = bool(data["enabled"])
+                config["lan"] = lan
+                save_config(config)
+                invalidate_lan_cache()
+                self._json({"message": "LAN config updated.", "lan": resolve_lan_config()})
+            except Exception as e:
+                self._err(str(e))
         elif path == "/api/server/restart":
             self._json({"message": "Restarting portly..."})
             self._schedule_restart()
@@ -200,7 +232,7 @@ class APIHandler(BaseHTTPRequestHandler):
                            "https_enabled", "docker_discovery", "aliases",
                            "scan_ports", "scan_ranges", "scan_common",
                            "auto_start", "auto_update",
-                           "docker_strip_prefix", "short_aliases"}
+                           "docker_strip_prefix", "short_aliases", "lan"}
                 for k, v in new.items():
                     if k in allowed:
                         config[k] = v

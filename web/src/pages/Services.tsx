@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { fetchStatus, refreshServices, type StatusResponse, type ServiceInfo } from "@/lib/api";
-import { Globe, Loader2, RefreshCw, Container, Link, Radar, Lock, Zap, Copy, Check } from "lucide-react";
+import { Globe, Loader2, RefreshCw, Container, Link, Radar, Lock, Zap, Copy, Check, Wifi } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -39,8 +39,9 @@ export default function Services() {
     );
   }
 
-  const { services, config: cfg } = data;
+  const { services, config: cfg, lan } = data;
   const httpsOn = cfg.https_enabled;
+  const lanOn = lan?.enabled ?? false;
   const running = services.filter(s => s.state === "running").length;
   const stopped = services.length - running;
 
@@ -64,6 +65,11 @@ export default function Services() {
           </p>
         </div>
         <div className="flex items-center gap-2">
+          {lanOn && (
+            <Badge variant="outline" className="text-orange-500 border-orange-500/30">
+              <Wifi size={10} className="mr-1" /> LAN
+            </Badge>
+          )}
           {httpsOn && (
             <Badge variant="outline" className="text-green-500 border-green-500/30">
               <Lock size={10} className="mr-1" /> HTTPS
@@ -111,7 +117,7 @@ export default function Services() {
                     <CardContent className="p-0">
                       <div className="grid grid-cols-1 xl:grid-cols-2 2xl:grid-cols-3 gap-3 p-4">
                         {items.map(s => (
-                          <ServiceCard key={s.name} service={s} httpsOn={httpsOn} copied={copied} onCopy={handleCopy} />
+                          <ServiceCard key={s.name} service={s} httpsOn={httpsOn} lanEnabled={lanOn} copied={copied} onCopy={handleCopy} />
                         ))}
                       </div>
                     </CardContent>
@@ -126,8 +132,8 @@ export default function Services() {
   );
 }
 
-function ServiceCard({ service: s, httpsOn, copied, onCopy }: {
-  service: ServiceInfo; httpsOn: boolean; copied: string; onCopy: (u: string) => void;
+function ServiceCard({ service: s, httpsOn, copied, onCopy, lanEnabled }: {
+  service: ServiceInfo; httpsOn: boolean; copied: string; onCopy: (u: string) => void; lanEnabled?: boolean;
 }) {
   const isUp = s.state === "running";
   return (
@@ -160,6 +166,9 @@ function ServiceCard({ service: s, httpsOn, copied, onCopy }: {
         {httpsOn && s.https_url && (
           <UrlRow label="HTTPS" url={s.https_url} copied={copied} onCopy={onCopy} icon={<Lock size={11} className="text-green-400" />} variant="https" />
         )}
+        {lanEnabled && s.lan_url && (
+          <UrlRow label="LAN" url={s.lan_url} copied={copied} onCopy={onCopy} icon={<Wifi size={11} className="text-orange-400" />} variant="lan" />
+        )}
       </div>
     </div>
   );
@@ -167,15 +176,18 @@ function ServiceCard({ service: s, httpsOn, copied, onCopy }: {
 
 function UrlRow({ label, url, copied, onCopy, icon, variant }: {
   label: string; url: string; copied: string; onCopy: (u: string) => void;
-  icon: React.ReactNode; variant?: "https";
+  icon: React.ReactNode; variant?: "https" | "lan";
 }) {
   const isCopied = copied === url;
+  const colorClass = variant === "https" ? "text-green-400 hover:text-green-300"
+    : variant === "lan" ? "text-orange-400 hover:text-orange-300"
+    : "text-blue-400 hover:text-blue-300";
   return (
     <div className="flex items-center gap-2 rounded-md border bg-muted/30 px-3 py-1.5 group">
       {icon}
       <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground w-9 flex-shrink-0">{label}</span>
       <a href={url} target="_blank" rel="noopener"
-        className={`text-xs font-mono truncate flex-1 transition-colors ${variant === "https" ? "text-green-400 hover:text-green-300" : "text-blue-400 hover:text-blue-300"}`}
+        className={`text-xs font-mono truncate flex-1 transition-colors ${colorClass}`}
       >{url}</a>
       <button onClick={() => onCopy(url)} className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-foreground transition-all p-1 rounded-sm hover:bg-accent flex-shrink-0" title="Copy">
         {isCopied ? <Check size={11} className="text-green-500" /> : <Copy size={11} />}

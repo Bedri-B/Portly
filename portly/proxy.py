@@ -112,8 +112,11 @@ class ProxyHandler(BaseHTTPRequestHandler):
         host = self.headers.get("Host", "").split(":")[0]
         if host in ("localhost", "127.0.0.1", ""):
             return "none", None, ""
-        # Match against primary domain and extra domains
+        # Match against primary domain, extra domains, and LAN domain
         domains = [config["domain"]] + config.get("extra_domains", [])
+        lan = config.get("lan", {})
+        if lan.get("enabled") and lan.get("domain"):
+            domains.append(lan["domain"])
         name = ""
         for d in domains:
             if host.endswith(d):

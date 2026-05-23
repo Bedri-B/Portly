@@ -3,9 +3,10 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   fetchStatus, updateConfig, checkUpdate, applyUpdate, setupHttps, regenerateCerts,
   removeCerts, fetchCertInfo, restartServer, installStartup, uninstallStartup,
-  exportConfig, importConfig, type StatusResponse, type AppConfig, type UpdateInfo, type CertInfo,
+  exportConfig, importConfig, enableLan, disableLan,
+  type StatusResponse, type AppConfig, type UpdateInfo, type CertInfo,
 } from "@/lib/api";
-import { Save, Loader2, RotateCcw, Lock, Globe, Download, RefreshCw, Power, Container, Trash2, RotateCw, Upload, FileDown, Info } from "lucide-react";
+import { Save, Loader2, RotateCcw, Lock, Globe, Download, RefreshCw, Power, Container, Trash2, RotateCw, Upload, FileDown, Info, Wifi } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -22,6 +23,7 @@ export default function Settings() {
   const [form, setForm] = useState<AppConfig>({
     proxy_port: 80, https_port: 443, domain: ".localhost", api_port: 19800, web_port: 19802,
     https_enabled: false, docker_discovery: true, scan_common: true, auto_start: true, auto_update: false, docker_strip_prefix: "", extra_domains: [],
+    lan: { enabled: false, domain: ".lan", ip: "auto" },
   });
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState("");
@@ -34,6 +36,8 @@ export default function Settings() {
   const [httpsMsg, setHttpsMsg] = useState("");
   const [certInfo, setCertInfo] = useState<CertInfo | null>(null);
   const [restarting, setRestarting] = useState(false);
+  const [lanLoading, setLanLoading] = useState(false);
+  const [lanMsg, setLanMsg] = useState("");
 
   useEffect(() => { if (data?.config) setForm(data.config); }, [data]);
   useEffect(() => { fetchCertInfo().then(setCertInfo).catch(() => {}); }, []);
@@ -137,6 +141,56 @@ export default function Settings() {
               <Field label="Strip prefix from Docker names" help="Comma-separated. Include the separator (e.g. the underscore). global_pgadmin → pgadmin.localhost">
                 <Input value={form.docker_strip_prefix ?? ""} onChange={(e) => setForm({ ...form, docker_strip_prefix: e.target.value })} placeholder="e.g. global_, myproject-" className="font-mono" />
               </Field>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-sm flex items-center gap-2"><Wifi size={14} /> LAN Access</CardTitle>
+                <Badge variant={form.lan?.enabled ? "default" : "secondary"} className="text-[10px]">
+                  {form.lan?.enabled ? "On" : "Off"}
+                </Badge>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <Label>Enable LAN access</Label>
+                  <p className="text-xs text-muted-foreground">Allow devices on your network to access services</p>
+                </div>
+                <Switch checked={form.lan?.enabled ?? false} disabled={lanLoading} onCheckedChange={async (v) => {
+                  setLanLoading(true); setLanMsg("");
+                  try {
+                    const r = v ? await enableLan() : await disableLan();
+                    setLanMsg(r.message);
+                    setForm({ ...form, lan: { ...form.lan, enabled: v } });
+                    qc.invalidateQueries({ queryKey: ["status"] });
+                  } catch { setLanMsg("Failed."); }
+                  setLanLoading(false);
+                }} />
+              </div>
+              <Field label="LAN domain" help="Domain suffix for LAN access (e.g. .lan, .local.dev)">
+                <Input value={form.lan?.domain ?? ".lan"}
+                  onChange={(e) => setForm({ ...form, lan: { ...form.lan, domain: e.target.value } })} />
+              </Field>
+              <Field label="LAN IP" help={'"auto" to detect, or set a specific IP'}>
+                <Input value={form.lan?.ip ?? "auto"} className="font-mono"
+                  onChange={(e) => setForm({ ...form, lan: { ...form.lan, ip: e.target.value } })} />
+              </Field>
+              {data.lan?.ip && (
+                <div className="rounded-md border p-3 text-xs">
+                  <span className="text-muted-foreground">Detected IP:</span>{" "}
+                  <span className="font-mono font-semibold">{data.lan.ip}</span>
+                </div>
+              )}
+              {form.lan?.enabled && (
+                <div className="rounded-md border border-orange-500/20 bg-orange-500/5 p-3 text-xs text-muted-foreground space-y-1">
+                  <p>Other devices need DNS pointing <code className="font-mono text-orange-400">*{form.lan?.domain || ".lan"}</code> to <code className="font-mono text-orange-400">{data.lan?.ip || "your IP"}</code>.</p>
+                  <p>Add to <code className="font-mono">/etc/hosts</code> on each device, or configure your router's DNS.</p>
+                </div>
+              )}
+              {lanMsg && <p className={`text-xs ${lanMsg.includes("fail") || lanMsg.includes("Failed") ? "text-destructive" : "text-green-500"}`}>{lanMsg}</p>}
             </CardContent>
           </Card>
         </div>
@@ -303,6 +357,7 @@ export default function Settings() {
           <Button variant="outline" onClick={() => setForm({
             proxy_port: 80, https_port: 443, domain: ".localhost", api_port: 19800, web_port: 19802,
             https_enabled: false, docker_discovery: true, scan_common: true, auto_start: true, auto_update: false, docker_strip_prefix: "", extra_domains: [],
+            lan: { enabled: false, domain: ".lan", ip: "auto" },
           })}>
             <RotateCcw size={13} /> Defaults
           </Button>

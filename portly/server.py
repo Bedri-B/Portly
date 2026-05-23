@@ -104,7 +104,15 @@ def run_server():
     print(f"\n  portly")
     print(f"  Domain:    *{domain}{ps}")
     print(f"  Dashboard: http://portly{domain}{ps}")
-    print(f"  Config:    {CONFIG_PATH}\n")
+    print(f"  Config:    {CONFIG_PATH}")
+
+    from portly.config import resolve_lan_config
+    lan = resolve_lan_config()
+    if lan.get("enabled"):
+        lan_domain = lan.get("domain", ".lan")
+        lan_ip = lan.get("ip", "unknown")
+        print(f"  LAN:       *{lan_domain} @ {lan_ip}")
+    print()
 
     threads = [
         threading.Thread(target=_serve, args=(config["api_port"], APIHandler, "API"), daemon=True),

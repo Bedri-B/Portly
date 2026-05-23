@@ -6,7 +6,7 @@ import sys
 import time
 import webbrowser
 
-from portly.config import config, save_config, SYSTEM, VERSION, _SUBPROCESS_FLAGS
+from portly.config import config, save_config, SYSTEM, VERSION, _SUBPROCESS_FLAGS, get_lan_ip, resolve_lan_config, invalidate_lan_cache
 from portly.discovery import port_is_open
 from portly.server import run_server, is_running
 from portly.service import service_install, service_uninstall
@@ -132,6 +132,88 @@ def cli_update():
     print(f"  {result['message']}")
 
 
+def cli_lan(args):
+    lan = config.get("lan", {})
+    if not args:
+        # Show status
+        resolved = resolve_lan_config()
+        if resolved.get("enabled"):
+            ip = resolved.get("ip", "unknown")
+            domain = resolved.get("domain", ".lan")
+            ps = f":{config['proxy_port']}" if config["proxy_port"] != 80 else ""
+            print(f"  LAN access: \033[32menabled\033[0m")
+            print(f"  Domain:     *{domain}")
+            print(f"  IP:         {ip}")
+            print(f"  Example:    http://myapp{domain}{ps}")
+            print()
+            print(f"  Other devices need DNS pointing *{domain} to {ip}.")
+            print(f"  Add to /etc/hosts on each device:")
+            print(f"    {ip}  myapp{domain.lstrip('.')}")
+        else:
+            print(f"  LAN access: \033[31mdisabled\033[0m")
+            print(f"  Enable with: portly lan enable")
+        return
+
+    subcmd = args[0]
+    if subcmd == "enable":
+        lan["enabled"] = True
+        # Parse optional flags
+        for i, a in enumerate(args[1:], 1):
+            if a == "--domain" and i + 1 < len(args):
+                lan["domain"] = args[i + 1]
+            elif a == "--ip" and i + 1 < len(args):
+                lan["ip"] = args[i + 1]
+        config["lan"] = lan
+        save_config(config)
+        invalidate_lan_cache()
+        resolved = resolve_lan_config()
+        ip = resolved.get("ip", "unknown")
+        domain = resolved.get("domain", ".lan")
+        ps = f":{config['proxy_port']}" if config["proxy_port"] != 80 else ""
+        print(f"  LAN access enabled!")
+        print(f"  Domain: *{domain}")
+        print(f"  IP:     {ip}")
+        print()
+        print(f"  To access from other devices on your network:")
+        print(f"  1. Add DNS entries pointing *{domain} to {ip}")
+        print(f"     Or add to /etc/hosts on each device:")
+        print(f"       {ip}  myapp{domain.lstrip('.')}")
+        print(f"  2. Restart portly: portly restart")
+        if config.get("https_enabled"):
+            print(f"  3. Regenerate certs to include LAN SANs: portly restart")
+        print()
+        if SYSTEM == "Windows":
+            print(f"  Note: Windows Firewall may block incoming connections.")
+            print(f"  Allow portly through the firewall if needed.")
+    elif subcmd == "disable":
+        lan["enabled"] = False
+        config["lan"] = lan
+        save_config(config)
+        invalidate_lan_cache()
+        print("  LAN access disabled.")
+    elif subcmd == "--domain" and len(args) > 1:
+        lan["domain"] = args[1]
+        config["lan"] = lan
+        save_config(config)
+        invalidate_lan_cache()
+        print(f"  LAN domain set to: {args[1]}")
+    elif subcmd == "--ip" and len(args) > 1:
+        lan["ip"] = args[1]
+        config["lan"] = lan
+        save_config(config)
+        invalidate_lan_cache()
+        print(f"  LAN IP set to: {args[1]}")
+    else:
+        print("Usage:")
+        print("  portly lan                  Show LAN status")
+        print("  portly lan enable           Enable LAN access")
+        print("  portly lan disable          Disable LAN access")
+        print("  portly lan enable --domain .mylan  Enable with custom domain")
+        print("  portly lan enable --ip 192.168.1.50  Enable with specific IP")
+        print("  portly lan --domain .mylan  Set LAN domain")
+        print("  portly lan --ip 192.168.1.50  Set LAN IP")
+
+
 def cli_status():
     if is_running():
         print(f"portly is running — {_dashboard_url()}")
@@ -212,6 +294,8 @@ def main():
             print("Started (server may still be initializing).")
     elif cmd in ("status",):
         cli_status()
+    elif cmd in ("lan",):
+        cli_lan(args[1:])
     elif cmd in ("update",):
         cli_update()
     elif cmd == "--no-browser":
@@ -235,6 +319,10 @@ Usage:
   portly alias <name> <port>      Map name.localhost -> localhost:port
   portly alias <name> --remove    Remove alias
   portly aliases                  List all aliases
+
+  portly lan                      Show LAN access status
+  portly lan enable               Enable LAN access for other devices
+  portly lan disable              Disable LAN access
 
   portly install                  Install as system service (auto-start on boot)
   portly uninstall                Remove system service

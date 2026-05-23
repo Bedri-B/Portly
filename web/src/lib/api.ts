@@ -5,11 +5,20 @@ export interface ServiceInfo {
   url: string;
   http_url: string;
   https_url: string | null;
+  lan_url: string | null;
+  lan_http_url: string | null;
+  lan_https_url: string | null;
   direct: string;
   port: number;
   image: string;
   state: string;
   source: "docker" | "alias" | "scan" | "unknown";
+}
+
+export interface LanConfig {
+  enabled: boolean;
+  domain: string;
+  ip: string | null;
 }
 
 export interface AppConfig {
@@ -25,6 +34,7 @@ export interface AppConfig {
   auto_update: boolean;
   docker_strip_prefix: string;
   extra_domains: string[];
+  lan: { enabled: boolean; domain: string; ip: string };
 }
 
 export interface StatusResponse {
@@ -34,6 +44,7 @@ export interface StatusResponse {
   short_aliases: Record<string, string>;
   scan_ports: number[];
   scan_ranges: [number, number][];
+  lan: LanConfig;
   version: string;
 }
 
@@ -155,6 +166,25 @@ export const exportConfig = async () => {
 
 export const importConfig = async (cfg: Record<string, unknown>) => {
   const res = await fetch(`${API}/api/config/import`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(cfg),
+  });
+  return res.json();
+};
+
+export const enableLan = async () => {
+  const res = await fetch(`${API}/api/lan/enable`, { method: "POST" });
+  return res.json();
+};
+
+export const disableLan = async () => {
+  const res = await fetch(`${API}/api/lan/disable`, { method: "POST" });
+  return res.json();
+};
+
+export const configureLan = async (cfg: { domain?: string; ip?: string; enabled?: boolean }) => {
+  const res = await fetch(`${API}/api/lan/configure`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(cfg),

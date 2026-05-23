@@ -34,6 +34,15 @@ def _cert_domains() -> list[str]:
 
     names += ["127.0.0.1", "::1"]
 
+    # LAN domains and IP when LAN mode is enabled
+    from portly.config import resolve_lan_config
+    lan = resolve_lan_config()
+    if lan.get("enabled"):
+        lan_domain = lan.get("domain", ".lan").lstrip(".")
+        names += [lan_domain, f"*.{lan_domain}"]
+        if lan.get("ip"):
+            names.append(lan["ip"])
+
     # Also add explicit names for all known services (fixes Chrome wildcard issues)
     from portly.registry import registry
     domain = config.get("domain", ".localhost")

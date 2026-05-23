@@ -118,6 +118,20 @@ class RouteRegistry:
             base += f":{port}"
         return base
 
+    def _lan_url(self, name: str, https: bool = False) -> str | None:
+        from portly.config import resolve_lan_config
+        lan = resolve_lan_config()
+        if not lan.get("enabled") or not lan.get("domain"):
+            return None
+        domain = lan["domain"]
+        scheme = "https" if https else "http"
+        port = config["https_port"] if https else config["proxy_port"]
+        default_port = 443 if https else 80
+        base = f"{scheme}://{name}{domain}"
+        if port != default_port:
+            base += f":{port}"
+        return base
+
     def all_services(self) -> list[dict]:
         https_on = config.get("https_enabled", False)
         with self._lock:
@@ -127,6 +141,9 @@ class RouteRegistry:
                     "url": self._url(name, https=https_on),
                     "http_url": self._url(name, https=False),
                     "https_url": self._url(name, https=True) if https_on else None,
+                    "lan_url": self._lan_url(name, https=https_on),
+                    "lan_http_url": self._lan_url(name, https=False),
+                    "lan_https_url": self._lan_url(name, https=True) if https_on else None,
                     "direct": f"http://localhost:{info['port']}",
                     "port": info["port"],
                     "image": info.get("image", ""),

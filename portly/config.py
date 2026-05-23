@@ -46,6 +46,11 @@ DEFAULT_CONFIG = {
     "scan_common": True,       # scan well-known dev ports
     "auto_start": True,        # start on boot
     "auto_update": False,      # check & install updates automatically
+    "lan": {
+        "enabled": False,
+        "domain": ".lan",
+        "ip": "auto",          # "auto" to detect, or a specific IP like "192.168.1.100"
+    },
 }
 
 # Well-known dev server ports — scanned when scan_common is True
@@ -82,6 +87,48 @@ COMMON_DEV_PORTS = [
     15672,                     # RabbitMQ management
     27017,                     # MongoDB
 ]
+
+
+def get_lan_ip() -> str | None:
+    """Detect the machine's LAN IP address."""
+    import socket
+    try:
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.settimeout(0.5)
+        s.connect(("10.255.255.255", 1))
+        ip = s.getsockname()[0]
+        s.close()
+        return ip if ip != "127.0.0.1" else None
+    except Exception:
+        return None
+
+
+_lan_resolved: dict | None = None
+
+
+def resolve_lan_config() -> dict:
+    """Return resolved LAN config with the actual IP (replacing 'auto')."""
+    global _lan_resolved
+    lan = config.get("lan", {})
+    if not lan.get("enabled"):
+        return {"enabled": False, "domain": lan.get("domain", ".lan"), "ip": None}
+    if _lan_resolved and _lan_resolved.get("enabled"):
+        return _lan_resolved
+    ip = lan.get("ip", "auto")
+    if ip == "auto":
+        ip = get_lan_ip()
+    _lan_resolved = {
+        "enabled": True,
+        "domain": lan.get("domain", ".lan"),
+        "ip": ip,
+    }
+    return _lan_resolved
+
+
+def invalidate_lan_cache():
+    """Clear cached LAN config so it's re-resolved on next call."""
+    global _lan_resolved
+    _lan_resolved = None
 
 
 def load_config() -> dict:
